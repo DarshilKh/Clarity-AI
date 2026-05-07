@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createBrowserSupabaseClient } from "@/lib/supabase-browser";
@@ -43,7 +43,7 @@ function isValidEmail(email: string): boolean {
 // ── Password strength component ──────────────────────────────────────────────
 function PasswordStrength({ password }: { password: string }) {
   const checks = [
-    { label: "8+ characters",   ok: password.length >= 8 },
+    { label: "8+ characters",    ok: password.length >= 8 },
     { label: "Uppercase letter", ok: /[A-Z]/.test(password) },
     { label: "Number",           ok: /\d/.test(password) },
   ];
@@ -53,7 +53,6 @@ function PasswordStrength({ password }: { password: string }) {
 
   return (
     <div style={{ marginTop: "0.5rem" }}>
-      {/* Strength bar */}
       <div style={{ display: "flex", gap: "0.25rem", marginBottom: "0.4rem" }}>
         {[0, 1, 2].map((i) => (
           <div
@@ -75,8 +74,6 @@ function PasswordStrength({ password }: { password: string }) {
           />
         ))}
       </div>
-
-      {/* Check labels */}
       <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
         {checks.map((c) => (
           <div key={c.label} style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
@@ -100,8 +97,8 @@ function PasswordStrength({ password }: { password: string }) {
   );
 }
 
-// ── Main component ───────────────────────────────────────────────────────────
-export default function SignupPage() {
+// ── Inner component (uses useSearchParams) ───────────────────────────────────
+function SignupForm() {
   const router       = useRouter();
   const searchParams = useSearchParams();
   const next         = searchParams.get("next") ?? "/dashboard";
@@ -117,23 +114,19 @@ export default function SignupPage() {
 
   const supabase = createBrowserSupabaseClient();
 
-  // ── Email/password signup ──────────────────────────────────────────────────
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setLoading(true);
 
-    // ✅ Normalize to lowercase — prevents case-sensitivity rejections
     const normalizedEmail = email.trim().toLowerCase();
 
-    // ✅ Client-side email format check
     if (!isValidEmail(normalizedEmail)) {
       setError("Please enter a valid email address (e.g. you@example.com).");
       setLoading(false);
       return;
     }
 
-    // ✅ Client-side password length check
     if (password.length < 8) {
       setError("Password must be at least 8 characters.");
       setLoading(false);
@@ -150,7 +143,6 @@ export default function SignupPage() {
     });
 
     if (signUpError) {
-      // ✅ Friendly error messages
       const msg = signUpError.message.toLowerCase();
       if (msg.includes("already registered") || msg.includes("already exists")) {
         setError("An account with this email already exists. Try signing in instead.");
@@ -167,7 +159,6 @@ export default function SignupPage() {
     setLoading(false);
   }
 
-  // ── OAuth signup ───────────────────────────────────────────────────────────
   async function handleOAuth(provider: "google" | "github") {
     setOauthLoading(provider);
     setError(null);
@@ -243,10 +234,7 @@ export default function SignupPage() {
 
         <p style={{ fontSize: "0.78rem", color: "var(--color-ink-faint)" }}>
           Already confirmed?{" "}
-          <Link
-            href="/auth/login"
-            style={{ color: "var(--color-amber)", fontWeight: 600 }}
-          >
+          <Link href="/auth/login" style={{ color: "var(--color-amber)", fontWeight: 600 }}>
             Sign in
           </Link>
         </p>
@@ -444,7 +432,6 @@ export default function SignupPage() {
               className="input-field"
               placeholder="you@example.com"
               value={email}
-              // ✅ Always store as lowercase
               onChange={(e) => setEmail(e.target.value.toLowerCase())}
               required
               autoComplete="email"
@@ -556,5 +543,20 @@ export default function SignupPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+// ✅ Default export — wraps SignupForm in Suspense
+export default function SignupPage() {
+  return (
+    <Suspense
+      fallback={
+        <div style={{ display: "flex", justifyContent: "center", padding: "4rem" }}>
+          <Loader2 size={24} style={{ animation: "spin 1s linear infinite" }} />
+        </div>
+      }
+    >
+      <SignupForm />
+    </Suspense>
   );
 }
