@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createBrowserSupabaseClient } from "@/lib/supabase-browser";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 
-// ── Inline SVG brand icons (Chrome & Github removed from lucide-react) ──────
+// ── Inline SVG brand icons ───────────────────────────────────────────────────
 
 const GoogleIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -37,7 +37,8 @@ const GithubIcon = () => (
 
 // ────────────────────────────────────────────────────────────────────────────
 
-export default function LoginPage() {
+// ✅ Inner component — uses useSearchParams(), must be inside Suspense
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get("next") ?? "/dashboard";
@@ -420,5 +421,18 @@ export default function LoginPage() {
         Free plan includes 2 AI analyses per day
       </p>
     </div>
+  );
+}
+
+// ✅ Default export — wraps LoginForm in Suspense to satisfy Next.js static prerendering
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ display: "flex", justifyContent: "center", padding: "4rem" }}>
+        <Loader2 size={24} style={{ animation: "spin 1s linear infinite" }} />
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }
