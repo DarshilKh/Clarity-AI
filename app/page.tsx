@@ -1,7 +1,12 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
+import { motion } from "framer-motion";
 import {
-  Brain, ArrowRight, Zap, Shield, BarChart2,
-  Eye, CheckCircle2, Lightbulb, Clock, Star,
+  Brain, ArrowRight, Sparkles, Shield, BarChart2,
+  Eye, CheckCircle2, Lightbulb, Clock, Star, Zap,
 } from "lucide-react";
 
 // ── Data ─────────────────────────────────────────────────────────────────────
@@ -68,14 +73,6 @@ const steps = [
   },
 ];
 
-const frameworks = [
-  "Expected Value",
-  "Pre-Mortem",
-  "WRAP Model",
-  "Second-Order Thinking",
-  "Bias Detection",
-];
-
 const socialProof = [
   { value: "2,400+", label: "Decisions analyzed" },
   { value: "94%",   label: "Users report less decision anxiety" },
@@ -122,9 +119,65 @@ function Stars({ count }: { count: number }) {
   );
 }
 
+/** Logo — refined balance between mark and wordmark */
+function Logo({ size = 48, wordmark = "1.55rem" }: { size?: number; wordmark?: string }) {
+  return (
+    <Link
+      href="/"
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "0.5rem",
+        textDecoration: "none",
+      }}
+    >
+      <div
+        style={{
+          width: size,
+          height: size,
+          position: "relative",
+          flexShrink: 0,
+        }}
+      >
+        <Image
+          src="/logo-mark.png"
+          alt="Clarity"
+          fill
+          priority
+          sizes={`${size}px`}
+          style={{
+            objectFit: "contain",
+          }}
+        />
+      </div>
+      <span
+        style={{
+          fontFamily: "var(--font-display)",
+          fontSize: wordmark,
+          fontWeight: 500,
+          letterSpacing: "-0.02em",
+          color: "var(--color-ink)",
+          lineHeight: 1,
+        }}
+      >
+        Clarity
+      </span>
+    </Link>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function HomePage() {
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 24);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   return (
     <main
       style={{
@@ -134,57 +187,42 @@ export default function HomePage() {
       }}
     >
 
-      {/* ── Nav ── */}
+      {/* ── Nav (transparent → blurred on scroll) ── */}
       <nav
         style={{
-          borderBottom: "1px solid var(--color-border)",
-          background: "var(--color-surface-raised)",
-          position: "sticky",
+          position: "fixed",
           top: 0,
+          left: 0,
+          right: 0,
           zIndex: 50,
-          backdropFilter: "blur(12px)",
+          height: 80,
+          background: scrolled ? "rgba(246, 242, 236, 0.72)" : "transparent",
+          backdropFilter: scrolled ? "blur(20px) saturate(140%)" : "none",
+          WebkitBackdropFilter: scrolled ? "blur(20px) saturate(140%)" : "none",
+          borderBottom: scrolled
+            ? "1px solid rgba(0, 0, 0, 0.05)"
+            : "1px solid transparent",
+          boxShadow: scrolled
+            ? "0 1px 20px rgba(13, 13, 13, 0.04)"
+            : "none",
+          transition: "all 300ms ease-out",
         }}
       >
         <div
           style={{
-            maxWidth: 1100,
+            maxWidth: 1280,
             margin: "0 auto",
-            padding: "0 1.5rem",
-            height: 64,
+            padding: "0 3rem",
+            height: "100%",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
           }}
         >
           {/* Logo */}
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div
-              style={{
-                width: 32,
-                height: 32,
-                background: "var(--color-ink)",
-                borderRadius: "var(--radius-sm)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Brain size={17} color="white" strokeWidth={1.8} />
-            </div>
-            <span
-              style={{
-                fontFamily: "var(--font-display)",
-                fontSize: "1.2rem",
-                fontWeight: 700,
-                letterSpacing: "-0.03em",
-                color: "var(--color-ink)",
-              }}
-            >
-              Clarity
-            </span>
-          </div>
+          <Logo size={40} wordmark="1.55rem" />
 
-          {/* Nav links */}
+          {/* Nav links — softer black/70 */}
           <div
             style={{
               display: "flex",
@@ -194,39 +232,46 @@ export default function HomePage() {
           >
             <Link
               href="#how-it-works"
+              className="nav-link"
               style={{
-                fontSize: "0.875rem",
-                color: "var(--color-ink-muted)",
+                fontSize: "0.92rem",
+                color: "rgba(0, 0, 0, 0.7)",
                 fontWeight: 500,
-                padding: "0.5rem 0.75rem",
+                padding: "0.5rem 1rem",
                 borderRadius: "var(--radius-md)",
                 textDecoration: "none",
+                transition: "color 200ms ease",
               }}
             >
               How it works
             </Link>
             <Link
               href="#features"
+              className="nav-link"
               style={{
-                fontSize: "0.875rem",
-                color: "var(--color-ink-muted)",
+                fontSize: "0.92rem",
+                color: "rgba(0, 0, 0, 0.7)",
                 fontWeight: 500,
-                padding: "0.5rem 0.75rem",
+                padding: "0.5rem 1rem",
                 borderRadius: "var(--radius-md)",
                 textDecoration: "none",
+                transition: "color 200ms ease",
               }}
             >
               Features
             </Link>
             <Link
               href="/auth/login"
+              className="nav-link"
               style={{
-                fontSize: "0.875rem",
-                color: "var(--color-ink-muted)",
+                fontSize: "0.92rem",
+                color: "rgba(0, 0, 0, 0.7)",
                 fontWeight: 500,
-                padding: "0.5rem 0.75rem",
+                padding: "0.5rem 1rem",
                 borderRadius: "var(--radius-md)",
                 textDecoration: "none",
+                marginRight: "0.5rem",
+                transition: "color 200ms ease",
               }}
             >
               Sign in
@@ -236,19 +281,19 @@ export default function HomePage() {
               style={{
                 display: "inline-flex",
                 alignItems: "center",
-                gap: "0.375rem",
-                padding: "0.55rem 1.1rem",
+                gap: "0.45rem",
+                padding: "0.7rem 1.3rem",
                 background: "var(--color-ink)",
                 color: "white",
                 borderRadius: "var(--radius-md)",
                 fontWeight: 600,
-                fontSize: "0.875rem",
+                fontSize: "0.92rem",
                 textDecoration: "none",
-                marginLeft: "0.25rem",
+                transition: "transform 200ms ease",
               }}
             >
               Get Started
-              <ArrowRight size={14} />
+              <ArrowRight size={15} />
             </Link>
           </div>
         </div>
@@ -257,174 +302,252 @@ export default function HomePage() {
       {/* ── Hero ── */}
       <section
         style={{
-          maxWidth: 1100,
-          margin: "0 auto",
-          padding: "5.5rem 1.5rem 4.5rem",
-          textAlign: "center",
+          position: "relative",
+          width: "100%",
+          minHeight: "100vh",
+          backgroundImage: "url('/bg-img-clarity.png')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          overflow: "hidden",
+          isolation: "isolate",
         }}
       >
-        {/* Badge */}
+        {/* Right-side glow softener — slightly dimmed */}
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            inset: 0,
+            background:
+              "linear-gradient(90deg, transparent 0%, transparent 52%, rgba(245, 242, 237, 0.38) 80%, rgba(245, 242, 237, 0.56) 100%)",
+            zIndex: 1,
+            pointerEvents: "none",
+          }}
+        />
+
+        {/* Additional right-edge soft veil */}
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            top: 0,
+            right: 0,
+            bottom: 0,
+            width: "42%",
+            background:
+              "radial-gradient(ellipse at right center, rgba(245, 242, 237, 0.24) 0%, transparent 70%)",
+            zIndex: 1,
+            pointerEvents: "none",
+          }}
+        />
+
+        {/* Subtle radial glow behind text */}
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            top: "52%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            width: "min(950px, 92%)",
+            height: "min(620px, 78%)",
+            background:
+              "radial-gradient(ellipse at center, rgba(250, 247, 240, 0.5) 0%, rgba(250, 247, 240, 0.2) 40%, transparent 75%)",
+            zIndex: 1,
+            pointerEvents: "none",
+            filter: "blur(24px)",
+          }}
+        />
+
+        {/* Top/bottom edge fade */}
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            inset: 0,
+            background:
+              "linear-gradient(180deg, rgba(245, 242, 237, 0.25) 0%, transparent 12%, transparent 85%, rgba(245, 242, 237, 0.5) 100%)",
+            zIndex: 1,
+            pointerEvents: "none",
+          }}
+        />
+
+        {/* Content — optically centered, nudged up */}
         <div
           style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "0.5rem",
-            padding: "0.35rem 1rem",
-            borderRadius: "var(--radius-full)",
-            background: "var(--color-amber-pale)",
-            border: "1px solid var(--color-amber-border)",
-            marginBottom: "2rem",
-          }}
-        >
-          <Zap size={12} color="var(--color-amber)" strokeWidth={2.5} fill="var(--color-amber)" />
-          <span
-            style={{
-              fontSize: "0.75rem",
-              fontWeight: 700,
-              color: "var(--color-amber)",
-              textTransform: "uppercase",
-              letterSpacing: "0.07em",
-            }}
-          >
-            AI-powered decision science
-          </span>
-        </div>
-
-        {/* Headline */}
-        <h1
-          style={{
-            fontFamily: "var(--font-display)",
-            fontSize: "clamp(2.6rem, 6.5vw, 4.25rem)",
-            fontWeight: 800,
-            color: "var(--color-ink)",
-            letterSpacing: "-0.04em",
-            lineHeight: 1.07,
-            maxWidth: 800,
-            margin: "0 auto 1.5rem",
-          }}
-        >
-          Stop deciding on{" "}
-          <span
-            style={{
-              textDecoration: "underline",
-              textDecorationColor: "var(--color-amber)",
-              textDecorationThickness: 3,
-              textUnderlineOffset: 6,
-            }}
-          >
-            gut feel.
-          </span>
-          <br />
-          <span style={{ color: "var(--color-amber)" }}>Start deciding with clarity.</span>
-        </h1>
-
-        {/* Subheadline */}
-        <p
-          style={{
-            fontSize: "clamp(1rem, 2.5vw, 1.2rem)",
-            color: "var(--color-ink-muted)",
-            lineHeight: 1.75,
-            maxWidth: 580,
-            margin: "0 auto 2.5rem",
-          }}
-        >
-          Clarity applies five proven decision science frameworks to your biggest life choices —
-          removing emotional bias so you think{" "}
-          <em style={{ fontStyle: "normal", color: "var(--color-ink)", fontWeight: 600 }}>better</em>,
-          not just faster.
-        </p>
-
-        {/* CTAs */}
-        <div
-          style={{
+            position: "relative",
+            zIndex: 2,
+            maxWidth: 960,
+            width: "100%",
+            padding: "8rem 1.5rem 4rem",
+            textAlign: "center",
             display: "flex",
+            flexDirection: "column",
             alignItems: "center",
-            justifyContent: "center",
-            gap: "0.875rem",
-            flexWrap: "wrap",
-            marginBottom: "2.75rem",
+            transform: "translate(-0.6%, -12px)",
           }}
         >
-          <Link
-            href="/decision/new"
+          {/* Badge */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
             style={{
               display: "inline-flex",
               alignItems: "center",
               gap: "0.5rem",
-              padding: "0.875rem 2rem",
-              background: "var(--color-amber)",
-              color: "white",
-              borderRadius: "var(--radius-md)",
-              fontWeight: 700,
-              fontSize: "1rem",
-              textDecoration: "none",
-              boxShadow: "0 4px 20px color-mix(in srgb, var(--color-amber) 30%, transparent)",
+              padding: "0.5rem 1.1rem",
+              borderRadius: "var(--radius-full)",
+              background: "rgba(255, 255, 255, 0.65)",
+              border: "1px solid rgba(216, 210, 200, 0.6)",
+              marginBottom: "2.25rem",
+              backdropFilter: "blur(12px)",
+              WebkitBackdropFilter: "blur(12px)",
             }}
           >
-            Analyze a Decision Free
-            <ArrowRight size={16} />
-          </Link>
-          <Link
-            href="#how-it-works"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "0.5rem",
-              padding: "0.875rem 2rem",
-              background: "transparent",
-              color: "var(--color-ink-muted)",
-              borderRadius: "var(--radius-md)",
-              fontWeight: 500,
-              fontSize: "1rem",
-              textDecoration: "none",
-              border: "1px solid var(--color-border)",
-            }}
-          >
-            See how it works
-          </Link>
-        </div>
-
-        {/* Trust line */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: "0.4rem",
-            marginBottom: "2.5rem",
-          }}
-        >
-          <CheckCircle2 size={14} color="var(--color-sage)" strokeWidth={2.5} />
-          <span style={{ fontSize: "0.8rem", color: "var(--color-ink-faint)", fontWeight: 500 }}>
-            Free to start &nbsp;·&nbsp; No credit card &nbsp;·&nbsp; 2 analyses per day free
-          </span>
-        </div>
-
-        {/* Framework pills */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            flexWrap: "wrap",
-            gap: "0.5rem",
-          }}
-        >
-          {frameworks.map((f) => (
+            <Sparkles size={14} color="var(--color-amber)" strokeWidth={2.2} />
             <span
-              key={f}
               style={{
-                padding: "0.3rem 0.85rem",
-                borderRadius: "var(--radius-full)",
-                background: "var(--color-surface-alt)",
-                border: "1px solid var(--color-border)",
-                fontSize: "0.78rem",
-                color: "var(--color-ink-muted)",
+                fontSize: "0.88rem",
                 fontWeight: 500,
+                color: "var(--color-ink-soft)",
+                letterSpacing: "0.005em",
               }}
             >
-              {f}
+              AI-Powered Decision Science
             </span>
-          ))}
+          </motion.div>
+
+          {/* Headline — tighter editorial tracking */}
+          <motion.h1
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1], delay: 0.1 }}
+            style={{
+              fontFamily: "var(--font-display)",
+              fontSize: "clamp(2.4rem, 5.2vw, 4rem)",
+              fontWeight: 600,
+              color: "var(--color-ink)",
+              letterSpacing: "-0.04em",
+              lineHeight: 1.1,
+              maxWidth: 860,
+              margin: "0 auto 1.75rem",
+            }}
+          >
+            Stop deciding on gut feel.
+            <br />
+            Start deciding with{" "}
+            <span style={{ color: "var(--color-amber)", fontWeight: 600 }}>
+              clarity.
+            </span>
+          </motion.h1>
+
+          {/* Subheading — narrower for readability */}
+          <motion.p
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1], delay: 0.2 }}
+            style={{
+              fontSize: "clamp(1.05rem, 1.5vw, 1.18rem)",
+              color: "var(--color-ink-muted)",
+              lineHeight: 1.7,
+              maxWidth: 560,
+              margin: "0 auto 2.75rem",
+              fontWeight: 400,
+            }}
+          >
+            Clarity applies proven decision science frameworks to your biggest life choices —
+            removing emotional bias so you think better, not just faster.
+          </motion.p>
+
+          {/* CTAs */}
+          <motion.div
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1], delay: 0.3 }}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "0.85rem",
+              flexWrap: "wrap",
+              marginBottom: "2rem",
+            }}
+          >
+            <Link
+              href="/decision/new"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.55rem",
+                padding: "0.95rem 1.85rem",
+                background: "var(--color-ink)",
+                color: "white",
+                borderRadius: "var(--radius-md)",
+                fontWeight: 600,
+                fontSize: "1rem",
+                textDecoration: "none",
+                boxShadow: "0 10px 28px rgba(13, 13, 13, 0.22)",
+                transition: "transform 0.2s ease, box-shadow 0.2s ease",
+              }}
+            >
+              Analyze a Decision Free
+              <ArrowRight size={16} />
+            </Link>
+
+            {/* Secondary — softer integration */}
+            <Link
+              href="#how-it-works"
+              className="secondary-cta"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.55rem",
+                padding: "0.95rem 1.85rem",
+                background: "rgba(255, 255, 255, 0.65)",
+                color: "var(--color-ink)",
+                borderRadius: "var(--radius-md)",
+                fontWeight: 500,
+                fontSize: "1rem",
+                textDecoration: "none",
+                border: "1px solid rgba(0, 0, 0, 0.05)",
+                backdropFilter: "blur(8px)",
+                WebkitBackdropFilter: "blur(8px)",
+                transition: "background 250ms ease, border-color 250ms ease",
+              }}
+            >
+              See how it works
+              <ArrowRight size={16} />
+            </Link>
+          </motion.div>
+
+          {/* Trust line */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.8, ease: "easeOut", delay: 0.45 }}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "0.55rem",
+              fontSize: "0.9rem",
+              color: "var(--color-ink-muted)",
+              fontWeight: 500,
+              flexWrap: "wrap",
+            }}
+          >
+            <CheckCircle2 size={15} color="var(--color-sage)" strokeWidth={2.5} />
+            <span>Free to start</span>
+            <span style={{ opacity: 0.4 }}>·</span>
+            <span>No credit card</span>
+            <span style={{ opacity: 0.4 }}>·</span>
+            <span>2 analyses per day free</span>
+          </motion.div>
         </div>
       </section>
 
@@ -438,7 +561,7 @@ export default function HomePage() {
       >
         <div
           style={{
-            maxWidth: 1100,
+            maxWidth: 1200,
             margin: "0 auto",
             padding: "2rem 1.5rem",
             display: "grid",
@@ -453,7 +576,7 @@ export default function HomePage() {
                 style={{
                   fontFamily: "var(--font-display)",
                   fontSize: "clamp(1.6rem, 4vw, 2.1rem)",
-                  fontWeight: 800,
+                  fontWeight: 700,
                   color: "var(--color-ink)",
                   letterSpacing: "-0.03em",
                   lineHeight: 1,
@@ -464,7 +587,7 @@ export default function HomePage() {
               </p>
               <p
                 style={{
-                  fontSize: "0.8rem",
+                  fontSize: "0.85rem",
                   color: "var(--color-ink-faint)",
                   fontWeight: 500,
                 }}
@@ -480,17 +603,16 @@ export default function HomePage() {
       <section
         id="how-it-works"
         style={{
-          maxWidth: 1100,
+          maxWidth: 1200,
           margin: "0 auto",
           padding: "5rem 1.5rem",
         }}
       >
-        {/* Section label */}
         <div style={{ textAlign: "center", marginBottom: "3rem" }}>
           <span
             style={{
               display: "inline-block",
-              fontSize: "0.72rem",
+              fontSize: "0.78rem",
               fontWeight: 700,
               letterSpacing: "0.1em",
               textTransform: "uppercase",
@@ -503,8 +625,8 @@ export default function HomePage() {
           <h2
             style={{
               fontFamily: "var(--font-display)",
-              fontSize: "clamp(1.6rem, 4vw, 2.25rem)",
-              fontWeight: 800,
+              fontSize: "clamp(1.75rem, 4vw, 2.4rem)",
+              fontWeight: 700,
               color: "var(--color-ink)",
               letterSpacing: "-0.03em",
               marginBottom: "0.75rem",
@@ -514,9 +636,9 @@ export default function HomePage() {
           </h2>
           <p
             style={{
-              fontSize: "1rem",
+              fontSize: "1.05rem",
               color: "var(--color-ink-muted)",
-              maxWidth: 480,
+              maxWidth: 520,
               margin: "0 auto",
               lineHeight: 1.7,
             }}
@@ -526,7 +648,6 @@ export default function HomePage() {
           </p>
         </div>
 
-        {/* Steps */}
         <div
           style={{
             display: "grid",
@@ -540,11 +661,10 @@ export default function HomePage() {
               className="card"
               style={{ position: "relative", paddingTop: "1.5rem" }}
             >
-              {/* Step number */}
               <span
                 style={{
                   fontFamily: "var(--font-mono)",
-                  fontSize: "0.72rem",
+                  fontSize: "0.75rem",
                   fontWeight: 700,
                   color: "var(--color-amber)",
                   letterSpacing: "0.05em",
@@ -557,7 +677,7 @@ export default function HomePage() {
               <h3
                 style={{
                   fontFamily: "var(--font-display)",
-                  fontSize: "1rem",
+                  fontSize: "1.1rem",
                   fontWeight: 700,
                   color: "var(--color-ink)",
                   marginBottom: "0.5rem",
@@ -567,7 +687,7 @@ export default function HomePage() {
               </h3>
               <p
                 style={{
-                  fontSize: "0.875rem",
+                  fontSize: "0.93rem",
                   color: "var(--color-ink-muted)",
                   lineHeight: 1.65,
                 }}
@@ -590,7 +710,7 @@ export default function HomePage() {
       >
         <div
           style={{
-            maxWidth: 1100,
+            maxWidth: 1200,
             margin: "0 auto",
             padding: "5rem 1.5rem",
           }}
@@ -599,7 +719,7 @@ export default function HomePage() {
             <span
               style={{
                 display: "inline-block",
-                fontSize: "0.72rem",
+                fontSize: "0.78rem",
                 fontWeight: 700,
                 letterSpacing: "0.1em",
                 textTransform: "uppercase",
@@ -612,8 +732,8 @@ export default function HomePage() {
             <h2
               style={{
                 fontFamily: "var(--font-display)",
-                fontSize: "clamp(1.6rem, 4vw, 2.25rem)",
-                fontWeight: 800,
+                fontSize: "clamp(1.75rem, 4vw, 2.4rem)",
+                fontWeight: 700,
                 color: "var(--color-ink)",
                 letterSpacing: "-0.03em",
                 marginBottom: "0.75rem",
@@ -623,9 +743,9 @@ export default function HomePage() {
             </h2>
             <p
               style={{
-                fontSize: "1rem",
+                fontSize: "1.05rem",
                 color: "var(--color-ink-muted)",
-                maxWidth: 440,
+                maxWidth: 480,
                 margin: "0 auto",
                 lineHeight: 1.7,
               }}
@@ -650,8 +770,8 @@ export default function HomePage() {
               >
                 <div
                   style={{
-                    width: 38,
-                    height: 38,
+                    width: 42,
+                    height: 42,
                     borderRadius: "var(--radius-md)",
                     background: "var(--color-surface-alt)",
                     display: "flex",
@@ -660,12 +780,12 @@ export default function HomePage() {
                     flexShrink: 0,
                   }}
                 >
-                  <Icon size={18} color={color} strokeWidth={2} />
+                  <Icon size={20} color={color} strokeWidth={2} />
                 </div>
                 <h3
                   style={{
                     fontFamily: "var(--font-display)",
-                    fontSize: "1rem",
+                    fontSize: "1.1rem",
                     fontWeight: 700,
                     color: "var(--color-ink)",
                   }}
@@ -674,7 +794,7 @@ export default function HomePage() {
                 </h3>
                 <p
                   style={{
-                    fontSize: "0.875rem",
+                    fontSize: "0.93rem",
                     color: "var(--color-ink-muted)",
                     lineHeight: 1.65,
                   }}
@@ -690,7 +810,7 @@ export default function HomePage() {
       {/* ── Testimonials ── */}
       <section
         style={{
-          maxWidth: 1100,
+          maxWidth: 1200,
           margin: "0 auto",
           padding: "5rem 1.5rem",
         }}
@@ -699,7 +819,7 @@ export default function HomePage() {
           <span
             style={{
               display: "inline-block",
-              fontSize: "0.72rem",
+              fontSize: "0.78rem",
               fontWeight: 700,
               letterSpacing: "0.1em",
               textTransform: "uppercase",
@@ -712,8 +832,8 @@ export default function HomePage() {
           <h2
             style={{
               fontFamily: "var(--font-display)",
-              fontSize: "clamp(1.6rem, 4vw, 2.25rem)",
-              fontWeight: 800,
+              fontSize: "clamp(1.75rem, 4vw, 2.4rem)",
+              fontWeight: 700,
               color: "var(--color-ink)",
               letterSpacing: "-0.03em",
             }}
@@ -738,10 +858,9 @@ export default function HomePage() {
               <Stars count={stars} />
               <p
                 style={{
-                  fontSize: "0.9rem",
+                  fontSize: "0.95rem",
                   color: "var(--color-ink-muted)",
                   lineHeight: 1.7,
-                  fontStyle: "italic",
                   flex: 1,
                   marginBottom: "1rem",
                 }}
@@ -751,14 +870,14 @@ export default function HomePage() {
               <div>
                 <p
                   style={{
-                    fontSize: "0.85rem",
+                    fontSize: "0.9rem",
                     fontWeight: 700,
                     color: "var(--color-ink)",
                   }}
                 >
                   {name}
                 </p>
-                <p style={{ fontSize: "0.78rem", color: "var(--color-ink-faint)" }}>
+                <p style={{ fontSize: "0.82rem", color: "var(--color-ink-faint)" }}>
                   {role}
                 </p>
               </div>
@@ -770,7 +889,7 @@ export default function HomePage() {
       {/* ── CTA ── */}
       <section
         style={{
-          maxWidth: 1100,
+          maxWidth: 1200,
           margin: "0 auto",
           padding: "0 1.5rem 5rem",
         }}
@@ -786,7 +905,6 @@ export default function HomePage() {
             overflow: "hidden",
           }}
         >
-          {/* Subtle glow orb */}
           <div
             aria-hidden
             style={{
@@ -809,17 +927,17 @@ export default function HomePage() {
                 display: "inline-flex",
                 alignItems: "center",
                 gap: "0.4rem",
-                padding: "0.3rem 0.9rem",
+                padding: "0.35rem 1rem",
                 borderRadius: "var(--radius-full)",
                 background: "rgba(255,255,255,0.08)",
                 border: "1px solid rgba(255,255,255,0.12)",
                 marginBottom: "1.5rem",
               }}
             >
-              <Clock size={12} color="rgba(255,255,255,0.7)" />
+              <Clock size={13} color="rgba(255,255,255,0.7)" />
               <span
                 style={{
-                  fontSize: "0.75rem",
+                  fontSize: "0.82rem",
                   fontWeight: 600,
                   color: "rgba(255,255,255,0.7)",
                 }}
@@ -831,8 +949,8 @@ export default function HomePage() {
             <h2
               style={{
                 fontFamily: "var(--font-display)",
-                fontSize: "clamp(1.75rem, 4vw, 2.5rem)",
-                fontWeight: 800,
+                fontSize: "clamp(1.85rem, 4vw, 2.6rem)",
+                fontWeight: 700,
                 color: "white",
                 marginBottom: "1rem",
                 letterSpacing: "-0.03em",
@@ -844,16 +962,15 @@ export default function HomePage() {
 
             <p
               style={{
-                fontSize: "1rem",
-                color: "rgba(255,255,255,0.6)",
+                fontSize: "1.05rem",
+                color: "rgba(255,255,255,0.65)",
                 marginBottom: "2rem",
-                maxWidth: 440,
+                maxWidth: 480,
                 margin: "0 auto 2rem",
                 lineHeight: 1.65,
               }}
             >
-              Free to start. No BS, no fluff —
-              just better thinking.
+              Free to start. No BS, no fluff — just better thinking.
             </p>
 
             <div
@@ -871,11 +988,11 @@ export default function HomePage() {
                   display: "inline-flex",
                   alignItems: "center",
                   gap: "0.5rem",
-                  padding: "0.875rem 2rem",
+                  padding: "0.95rem 2rem",
                   background: "var(--color-amber)",
                   color: "white",
                   borderRadius: "var(--radius-md)",
-                  fontWeight: 700,
+                  fontWeight: 600,
                   fontSize: "1rem",
                   textDecoration: "none",
                 }}
@@ -889,7 +1006,7 @@ export default function HomePage() {
                   display: "inline-flex",
                   alignItems: "center",
                   gap: "0.5rem",
-                  padding: "0.875rem 2rem",
+                  padding: "0.95rem 2rem",
                   background: "rgba(255,255,255,0.08)",
                   color: "rgba(255,255,255,0.85)",
                   borderRadius: "var(--radius-md)",
@@ -915,7 +1032,7 @@ export default function HomePage() {
       >
         <div
           style={{
-            maxWidth: 1100,
+            maxWidth: 1200,
             margin: "0 auto",
             padding: "2rem 1.5rem",
             display: "flex",
@@ -925,35 +1042,8 @@ export default function HomePage() {
             gap: "1rem",
           }}
         >
-          {/* Brand */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div
-              style={{
-                width: 26,
-                height: 26,
-                background: "var(--color-ink)",
-                borderRadius: "var(--radius-sm)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Brain size={13} color="white" strokeWidth={1.8} />
-            </div>
-            <span
-              style={{
-                fontFamily: "var(--font-display)",
-                fontSize: "1rem",
-                fontWeight: 700,
-                letterSpacing: "-0.03em",
-                color: "var(--color-ink)",
-              }}
-            >
-              Clarity
-            </span>
-          </div>
+          <Logo size={34} wordmark="1.15rem" />
 
-          {/* Links */}
           <div style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap" }}>
             {[
               { label: "Dashboard", href: "/dashboard" },
@@ -965,7 +1055,7 @@ export default function HomePage() {
                 key={label}
                 href={href}
                 style={{
-                  fontSize: "0.82rem",
+                  fontSize: "0.85rem",
                   color: "var(--color-ink-faint)",
                   textDecoration: "none",
                   fontWeight: 500,
@@ -976,11 +1066,20 @@ export default function HomePage() {
             ))}
           </div>
 
-          <p style={{ fontSize: "0.78rem", color: "var(--color-ink-faint)" }}>
+          <p style={{ fontSize: "0.8rem", color: "var(--color-ink-faint)" }}>
             © {new Date().getFullYear()} Clarity
           </p>
         </div>
       </footer>
+
+      {/* Hover states */}
+      <style>{`
+        .nav-link:hover { color: rgba(0, 0, 0, 1) !important; }
+        .secondary-cta:hover {
+          background: rgba(255, 255, 255, 0.85) !important;
+          border-color: rgba(0, 0, 0, 0.08) !important;
+        }
+      `}</style>
     </main>
   );
 }
