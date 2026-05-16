@@ -6,8 +6,7 @@ import Link from "next/link";
 import { createBrowserSupabaseClient } from "@/lib/supabase-browser";
 import { Eye, EyeOff, Loader2, CheckCircle2 } from "lucide-react";
 
-// ── Inline SVG brand icons ───────────────────────────────────────────────────
-
+// ── Google brand icon ────────────────────────────────────────────────────────
 const GoogleIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path
@@ -26,12 +25,6 @@ const GoogleIcon = () => (
       d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
       fill="#EA4335"
     />
-  </svg>
-);
-
-const GithubIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-    <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z" />
   </svg>
 );
 
@@ -97,7 +90,7 @@ function PasswordStrength({ password }: { password: string }) {
   );
 }
 
-// ── Inner component (uses useSearchParams) ───────────────────────────────────
+// ── Inner component ──────────────────────────────────────────────────────────
 function SignupForm() {
   const router       = useRouter();
   const searchParams = useSearchParams();
@@ -108,7 +101,7 @@ function SignupForm() {
   const [password, setPassword] = useState("");
   const [showPw, setShowPw]     = useState(false);
   const [loading, setLoading]   = useState(false);
-  const [oauthLoading, setOauthLoading] = useState<"google" | "github" | null>(null);
+  const [oauthLoading, setOauthLoading] = useState(false);
   const [error, setError]       = useState<string | null>(null);
   const [done, setDone]         = useState(false);
 
@@ -159,12 +152,12 @@ function SignupForm() {
     setLoading(false);
   }
 
-  async function handleOAuth(provider: "google" | "github") {
-    setOauthLoading(provider);
+  async function handleGoogleSignIn() {
+    setOauthLoading(true);
     setError(null);
 
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
-      provider,
+      provider: "google",
       options: {
         redirectTo: `${window.location.origin}/auth/callback?next=${next}`,
         queryParams: { access_type: "offline", prompt: "consent" },
@@ -173,7 +166,7 @@ function SignupForm() {
 
     if (oauthError) {
       setError(oauthError.message);
-      setOauthLoading(null);
+      setOauthLoading(false);
     }
   }
 
@@ -290,19 +283,11 @@ function SignupForm() {
           </div>
         )}
 
-        {/* OAuth buttons */}
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: "0.625rem",
-            marginBottom: "1.5rem",
-          }}
-        >
-          {/* Google */}
+        {/* Google OAuth Button */}
+        <div style={{ marginBottom: "1.5rem" }}>
           <button
-            onClick={() => handleOAuth("google")}
-            disabled={!!oauthLoading || loading}
+            onClick={handleGoogleSignIn}
+            disabled={oauthLoading || loading}
             style={{
               display: "flex",
               alignItems: "center",
@@ -317,46 +302,16 @@ function SignupForm() {
               fontWeight: 500,
               fontSize: "0.9rem",
               cursor: oauthLoading || loading ? "not-allowed" : "pointer",
-              opacity: oauthLoading === "github" ? 0.5 : 1,
+              opacity: oauthLoading || loading ? 0.7 : 1,
               transition: "all 0.15s ease",
             }}
           >
-            {oauthLoading === "google" ? (
+            {oauthLoading ? (
               <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />
             ) : (
               <GoogleIcon />
             )}
             Continue with Google
-          </button>
-
-          {/* GitHub */}
-          <button
-            onClick={() => handleOAuth("github")}
-            disabled={!!oauthLoading || loading}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "0.625rem",
-              width: "100%",
-              padding: "0.75rem",
-              borderRadius: "var(--radius-md)",
-              border: "1px solid var(--color-border)",
-              background: "var(--color-ink)",
-              color: "white",
-              fontWeight: 500,
-              fontSize: "0.9rem",
-              cursor: oauthLoading || loading ? "not-allowed" : "pointer",
-              opacity: oauthLoading === "google" ? 0.5 : 1,
-              transition: "all 0.15s ease",
-            }}
-          >
-            {oauthLoading === "github" ? (
-              <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />
-            ) : (
-              <GithubIcon />
-            )}
-            Continue with GitHub
           </button>
         </div>
 
@@ -489,7 +444,7 @@ function SignupForm() {
           {/* Submit */}
           <button
             type="submit"
-            disabled={loading || !!oauthLoading}
+            disabled={loading || oauthLoading}
             style={{
               width: "100%",
               padding: "0.8rem",
@@ -546,7 +501,6 @@ function SignupForm() {
   );
 }
 
-// ✅ Default export — wraps SignupForm in Suspense
 export default function SignupPage() {
   return (
     <Suspense
