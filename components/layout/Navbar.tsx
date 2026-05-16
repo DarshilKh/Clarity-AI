@@ -1,17 +1,64 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { Brain, LayoutDashboard, BookOpen, Plus, LogOut, User, Menu, X, ChevronDown } from "lucide-react";
+import { LayoutDashboard, BookOpen, Plus, LogOut, Menu, X, ChevronDown } from "lucide-react";
 import { createBrowserSupabaseClient } from "@/lib/supabase-browser";
-import { cn } from "@/lib/utils";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 
 const NAV_LINKS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/journal",   label: "Journal",   icon: BookOpen },
 ];
+
+/** Logo — refined balance between mark and wordmark */
+function Logo({ href, size = 40, wordmark = "1.3rem" }: { href: string; size?: number; wordmark?: string }) {
+  return (
+    <Link
+      href={href}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "0.45rem",
+        textDecoration: "none",
+      }}
+    >
+      <div
+        style={{
+          width: size,
+          height: size,
+          position: "relative",
+          flexShrink: 0,
+        }}
+      >
+        <Image
+          src="/logo-mark.png"
+          alt="Clarity"
+          fill
+          priority
+          sizes={`${size}px`}
+          style={{
+            objectFit: "contain",
+          }}
+        />
+      </div>
+      <span
+        style={{
+          fontFamily: "var(--font-display)",
+          fontSize: wordmark,
+          fontWeight: 500,
+          letterSpacing: "-0.02em",
+          color: "var(--color-ink)",
+          lineHeight: 1,
+        }}
+      >
+        Clarity
+      </span>
+    </Link>
+  );
+}
 
 export default function Navbar() {
   const pathname  = usePathname();
@@ -31,7 +78,6 @@ export default function Navbar() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Close menus on route change
   useEffect(() => {
     setMenuOpen(false);
     setUserOpen(false);
@@ -61,43 +107,17 @@ export default function Navbar() {
       >
         <div
           style={{
-            maxWidth: 1100,
+            maxWidth: 1200,
             margin: "0 auto",
-            padding: "0 1rem",
-            height: 60,
+            padding: "0 1.5rem",
+            height: 68,
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
           }}
         >
           {/* Logo */}
-          <Link href={user ? "/dashboard" : "/"} style={{ display: "flex", alignItems: "center", gap: "0.5rem", textDecoration: "none" }}>
-            <div
-              style={{
-                width: 30,
-                height: 30,
-                background: "var(--color-ink)",
-                borderRadius: "var(--radius-sm)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-              }}
-            >
-              <Brain size={16} color="white" strokeWidth={1.8} />
-            </div>
-            <span
-              style={{
-                fontFamily: "var(--font-display)",
-                fontSize: "1.15rem",
-                fontWeight: 700,
-                letterSpacing: "-0.03em",
-                color: "var(--color-ink)",
-              }}
-            >
-              Clarity
-            </span>
-          </Link>
+          <Logo href={user ? "/dashboard" : "/"} size={40} wordmark="1.3rem" />
 
           {/* Desktop nav */}
           <div style={{ display: "flex", alignItems: "center", gap: "0.25rem" }} className="desktop-nav">
@@ -132,7 +152,6 @@ export default function Navbar() {
           <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
             {user ? (
               <>
-                {/* New decision CTA */}
                 <Link
                   href="/decision/new"
                   style={{
@@ -154,7 +173,6 @@ export default function Navbar() {
                   <span className="show-xs">New</span>
                 </Link>
 
-                {/* User avatar dropdown */}
                 <div style={{ position: "relative" }}>
                   <button
                     onClick={() => setUserOpen((v) => !v)}
@@ -191,7 +209,6 @@ export default function Navbar() {
                     <ChevronDown size={13} color="var(--color-ink-faint)" />
                   </button>
 
-                  {/* Dropdown */}
                   {userOpen && (
                     <div
                       style={{
@@ -277,7 +294,6 @@ export default function Navbar() {
               </>
             )}
 
-            {/* Mobile hamburger */}
             <button
               onClick={() => setMenuOpen((v) => !v)}
               className="mobile-menu-btn"
@@ -296,7 +312,6 @@ export default function Navbar() {
           </div>
         </div>
 
-        {/* Mobile menu */}
         {menuOpen && (
           <div
             style={{
@@ -360,7 +375,6 @@ export default function Navbar() {
         )}
       </nav>
 
-      {/* Close dropdown on outside click */}
       {userOpen && (
         <div
           onClick={() => setUserOpen(false)}
