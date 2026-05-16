@@ -167,7 +167,7 @@ Add env vars in **Netlify → Site → Environment variables**.
 - [x] Decision journal with search & filters
 - [x] Outcome tracking (30/90/180 days)
 - [x] Supabase persistence
-- [ ] Supabase Auth (email + Google OAuth)
+- [x] Supabase Auth (email + Google OAuth)
 - [ ] Stripe freemium gating (3 decisions/month free, $9/mo Pro)
 - [ ] Email reminders for outcome check-ins
 - [ ] Advisor Mode — share decision frame with a trusted person
