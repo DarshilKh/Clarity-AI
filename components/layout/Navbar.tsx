@@ -3,51 +3,29 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { LayoutDashboard, BookOpen, Plus, LogOut, Menu, X, ChevronDown } from "lucide-react";
 import { createBrowserSupabaseClient } from "@/lib/supabase-browser";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 
 const NAV_LINKS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/journal",   label: "Journal",   icon: BookOpen },
+  { href: "/journal", label: "Journal", icon: BookOpen },
 ];
 
-/** Logo — refined balance between mark and wordmark */
-function Logo({ href, size = 40, wordmark = "1.3rem" }: { href: string; size?: number; wordmark?: string }) {
+function Logo({ href }: { href: string }) {
   return (
     <Link
       href={href}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: "0.45rem",
-        textDecoration: "none",
-      }}
+      style={{ display: "flex", alignItems: "center", gap: "0.45rem", textDecoration: "none" }}
     >
-      <div
-        style={{
-          width: size,
-          height: size,
-          position: "relative",
-          flexShrink: 0,
-        }}
-      >
-        <Image
-          src="/logo-mark.png"
-          alt="Clarity"
-          fill
-          priority
-          sizes={`${size}px`}
-          style={{
-            objectFit: "contain",
-          }}
-        />
-      </div>
+      <span style={{ width: 30, height: 30, position: "relative", flexShrink: 0 }}>
+        <Image src="/logo-mark.png" alt="" fill priority sizes="30px" style={{ objectFit: "contain" }} />
+      </span>
       <span
         style={{
           fontFamily: "var(--font-display)",
-          fontSize: wordmark,
+          fontSize: "1.15rem",
           fontWeight: 500,
           letterSpacing: "-0.02em",
           color: "var(--color-ink)",
@@ -61,27 +39,37 @@ function Logo({ href, size = 40, wordmark = "1.3rem" }: { href: string; size?: n
 }
 
 export default function Navbar() {
-  const pathname  = usePathname();
-  const router    = useRouter();
-  const supabase  = createBrowserSupabaseClient();
+  const pathname = usePathname();
+  const router = useRouter();
+  const supabase = createBrowserSupabaseClient();
 
-  const [user, setUser]             = useState<SupabaseUser | null>(null);
-  const [menuOpen, setMenuOpen]     = useState(false);
-  const [userOpen, setUserOpen]     = useState(false);
+  const [user, setUser] = useState<SupabaseUser | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [userOpen, setUserOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user));
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
-      setUser(session?.user ?? null);
-    });
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_e, session) => setUser(session?.user ?? null));
     return () => subscription.unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     setMenuOpen(false);
     setUserOpen(false);
   }, [pathname]);
+
+  // Close the account menu on Escape for keyboard users.
+  useEffect(() => {
+    if (!userOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setUserOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [userOpen]);
 
   async function signOut() {
     setSigningOut(true);
@@ -90,127 +78,124 @@ export default function Navbar() {
     router.refresh();
   }
 
-  const initials = user?.user_metadata?.full_name
-    ? user.user_metadata.full_name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()
-    : user?.email?.slice(0, 2).toUpperCase() ?? "?";
+  const displayName = (user?.user_metadata?.full_name as string | undefined) ?? null;
+  const initials = displayName
+    ? displayName.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
+    : user?.email?.slice(0, 2).toUpperCase() ?? "";
+
+  const isNewDecision = pathname === "/decision/new";
 
   return (
     <>
-      <nav
+      <header
         style={{
-          backgroundColor: "var(--color-surface-raised)",
+          background: "var(--color-surface-raised)",
           borderBottom: "1px solid var(--color-border)",
           position: "sticky",
           top: 0,
-          zIndex: 50,
+          zIndex: 60,
+          height: "var(--header-height)",
         }}
       >
         <div
           style={{
-            maxWidth: 1200,
+            maxWidth: 1120,
             margin: "0 auto",
-            padding: "0 1.5rem",
-            height: 68,
+            padding: "0 clamp(1rem, 4vw, 2rem)",
+            height: "100%",
             display: "flex",
             alignItems: "center",
-            justifyContent: "space-between",
+            gap: "1rem",
           }}
         >
-          {/* Logo */}
-          <Logo href={user ? "/dashboard" : "/"} size={40} wordmark="1.3rem" />
+          <Logo href={user ? "/dashboard" : "/"} />
 
-          {/* Desktop nav */}
-          <div style={{ display: "flex", alignItems: "center", gap: "0.25rem" }} className="desktop-nav">
-            {user && NAV_LINKS.map(({ href, label, icon: Icon }) => {
-              const active = pathname.startsWith(href);
-              return (
-                <Link
-                  key={href}
-                  href={href}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.375rem",
-                    padding: "0.45rem 0.875rem",
-                    borderRadius: "var(--radius-md)",
-                    fontSize: "0.875rem",
-                    fontWeight: 500,
-                    textDecoration: "none",
-                    color: active ? "var(--color-amber)" : "var(--color-ink-muted)",
-                    background: active ? "var(--color-amber-pale)" : "transparent",
-                    transition: "all 0.15s ease",
-                  }}
-                >
-                  <Icon size={15} strokeWidth={2} />
-                  {label}
-                </Link>
-              );
-            })}
-          </div>
-
-          {/* Right side */}
-          <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
-            {user ? (
-              <>
-                <Link
-                  href="/decision/new"
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.375rem",
-                    padding: "0.45rem 1rem",
-                    background: "var(--color-ink)",
-                    color: "white",
-                    borderRadius: "var(--radius-md)",
-                    fontSize: "0.85rem",
-                    fontWeight: 600,
-                    textDecoration: "none",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  <Plus size={14} strokeWidth={2.5} />
-                  <span className="hide-xs">New Decision</span>
-                  <span className="show-xs">New</span>
-                </Link>
-
-                <div style={{ position: "relative" }}>
-                  <button
-                    onClick={() => setUserOpen((v) => !v)}
+          {/* Primary nav */}
+          {user && (
+            <nav className="app-nav" style={{ display: "flex", alignItems: "center", gap: "0.15rem", marginLeft: "0.75rem" }}>
+              {NAV_LINKS.map(({ href, label, icon: Icon }) => {
+                const active = pathname.startsWith(href);
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    aria-current={active ? "page" : undefined}
                     style={{
                       display: "flex",
                       alignItems: "center",
-                      gap: "0.375rem",
-                      padding: "0.25rem 0.5rem 0.25rem 0.25rem",
+                      gap: "0.4rem",
+                      padding: "0.45rem 0.75rem",
+                      borderRadius: "var(--radius-md)",
+                      fontSize: "var(--text-sm)",
+                      fontWeight: active ? 600 : 500,
+                      textDecoration: "none",
+                      color: active ? "var(--color-ink)" : "var(--color-ink-muted)",
+                      background: active ? "var(--color-surface-alt)" : "transparent",
+                      transition: "background-color 0.14s ease, color 0.14s ease",
+                    }}
+                  >
+                    <Icon size={15} strokeWidth={1.9} />
+                    {label}
+                  </Link>
+                );
+              })}
+            </nav>
+          )}
+
+          <div style={{ flex: 1 }} />
+
+          {/* Right cluster */}
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            {user ? (
+              <>
+                {!isNewDecision && (
+                  <Link href="/decision/new" className="btn btn-primary btn-sm">
+                    <Plus size={14} strokeWidth={2.5} />
+                    <span className="hide-mobile">New decision</span>
+                    <span className="hide-desktop">New</span>
+                  </Link>
+                )}
+
+                <div style={{ position: "relative" }} ref={menuRef}>
+                  <button
+                    onClick={() => setUserOpen((v) => !v)}
+                    aria-haspopup="menu"
+                    aria-expanded={userOpen}
+                    aria-label="Account menu"
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.3rem",
+                      padding: "0.2rem 0.4rem 0.2rem 0.2rem",
                       borderRadius: "var(--radius-md)",
                       border: "1px solid var(--color-border)",
                       background: "transparent",
                       cursor: "pointer",
-                      transition: "all 0.15s ease",
                     }}
                   >
-                    <div
+                    <span
                       style={{
-                        width: 28,
-                        height: 28,
+                        width: 26,
+                        height: 26,
                         borderRadius: "var(--radius-full)",
-                        background: "var(--color-amber-pale)",
-                        border: "1px solid var(--color-amber-border)",
+                        background: "var(--color-ink)",
+                        color: "#fff",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        fontSize: "0.68rem",
-                        fontWeight: 700,
-                        color: "var(--color-amber)",
-                        flexShrink: 0,
+                        fontSize: "0.64rem",
+                        fontWeight: 600,
+                        letterSpacing: "0.02em",
                       }}
                     >
                       {initials}
-                    </div>
+                    </span>
                     <ChevronDown size={13} color="var(--color-ink-faint)" />
                   </button>
 
                   {userOpen && (
                     <div
+                      role="menu"
                       style={{
                         position: "absolute",
                         top: "calc(100% + 8px)",
@@ -218,35 +203,36 @@ export default function Navbar() {
                         background: "var(--color-surface-raised)",
                         border: "1px solid var(--color-border)",
                         borderRadius: "var(--radius-lg)",
-                        boxShadow: "0 8px 32px rgba(13,13,13,0.12)",
-                        minWidth: 220,
+                        boxShadow: "var(--shadow-md)",
+                        minWidth: 230,
                         overflow: "hidden",
                         zIndex: 100,
                       }}
                     >
-                      <div style={{ padding: "0.875rem 1rem", borderBottom: "1px solid var(--color-border)" }}>
-                        <p style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--color-ink)", marginBottom: "0.2rem" }}>
-                          {user.user_metadata?.full_name ?? "Your account"}
-                        </p>
-                        <p style={{ fontSize: "0.75rem", color: "var(--color-ink-faint)" }}>
-                          {user.email}
-                        </p>
+                      <div style={{ padding: "0.85rem 1rem", borderBottom: "1px solid var(--color-border)" }}>
+                        {displayName && (
+                          <p style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--color-ink)", marginBottom: "0.15rem" }}>
+                            {displayName}
+                          </p>
+                        )}
+                        <p className="meta" style={{ wordBreak: "break-all" }}>{user.email}</p>
                       </div>
-                      <div style={{ padding: "0.375rem" }}>
+                      <div style={{ padding: "0.3rem" }}>
                         <button
+                          role="menuitem"
                           onClick={signOut}
                           disabled={signingOut}
                           style={{
                             display: "flex",
                             alignItems: "center",
-                            gap: "0.625rem",
+                            gap: "0.6rem",
                             width: "100%",
-                            padding: "0.6rem 0.75rem",
+                            padding: "0.55rem 0.7rem",
                             borderRadius: "var(--radius-md)",
                             border: "none",
                             background: "transparent",
-                            color: "var(--color-rose)",
-                            fontSize: "0.875rem",
+                            color: "var(--color-ink-muted)",
+                            fontSize: "var(--text-sm)",
                             fontWeight: 500,
                             cursor: "pointer",
                             textAlign: "left",
@@ -262,134 +248,82 @@ export default function Navbar() {
               </>
             ) : (
               <>
-                <Link
-                  href="/auth/login"
-                  style={{
-                    fontSize: "0.875rem",
-                    fontWeight: 500,
-                    color: "var(--color-ink-muted)",
-                    textDecoration: "none",
-                    padding: "0.45rem 0.75rem",
-                  }}
-                >
+                <Link href="/auth/login" className="link-quiet hide-mobile" style={{ fontSize: "var(--text-sm)", padding: "0.4rem 0.6rem" }}>
                   Sign in
                 </Link>
-                <Link
-                  href="/auth/signup"
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.375rem",
-                    padding: "0.45rem 1rem",
-                    background: "var(--color-amber)",
-                    color: "white",
-                    borderRadius: "var(--radius-md)",
-                    fontSize: "0.875rem",
-                    fontWeight: 600,
-                    textDecoration: "none",
-                  }}
-                >
-                  Get started free
+                <Link href="/decision/new" className="btn btn-primary btn-sm">
+                  Analyze a decision
                 </Link>
               </>
             )}
 
-            <button
-              onClick={() => setMenuOpen((v) => !v)}
-              className="mobile-menu-btn"
-              style={{
-                display: "none",
-                padding: "0.4rem",
-                background: "none",
-                border: "1px solid var(--color-border)",
-                borderRadius: "var(--radius-md)",
-                cursor: "pointer",
-                color: "var(--color-ink-muted)",
-              }}
-            >
-              {menuOpen ? <X size={18} /> : <Menu size={18} />}
-            </button>
+            {user && (
+              <button
+                onClick={() => setMenuOpen((v) => !v)}
+                className="app-menu-btn"
+                aria-label={menuOpen ? "Close menu" : "Open menu"}
+                aria-expanded={menuOpen}
+                style={{
+                  display: "none",
+                  padding: "0.4rem",
+                  background: "none",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "var(--radius-md)",
+                  cursor: "pointer",
+                  color: "var(--color-ink-muted)",
+                }}
+              >
+                {menuOpen ? <X size={17} /> : <Menu size={17} />}
+              </button>
+            )}
           </div>
         </div>
 
-        {menuOpen && (
+        {/* Mobile nav */}
+        {menuOpen && user && (
           <div
             style={{
               borderTop: "1px solid var(--color-border)",
               background: "var(--color-surface-raised)",
-              padding: "0.75rem 1rem 1rem",
+              padding: "0.6rem 1rem 0.9rem",
             }}
           >
-            {user && NAV_LINKS.map(({ href, label, icon: Icon }) => (
-              <Link
-                key={href}
-                href={href}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "0.625rem",
-                  padding: "0.75rem 0.875rem",
-                  borderRadius: "var(--radius-md)",
-                  fontSize: "0.9rem",
-                  fontWeight: 500,
-                  textDecoration: "none",
-                  color: pathname.startsWith(href) ? "var(--color-amber)" : "var(--color-ink-muted)",
-                  background: pathname.startsWith(href) ? "var(--color-amber-pale)" : "transparent",
-                  marginBottom: "0.25rem",
-                }}
-              >
-                <Icon size={16} strokeWidth={2} />
-                {label}
-              </Link>
-            ))}
-            {user && (
-              <>
-                <div style={{ height: 1, background: "var(--color-border)", margin: "0.5rem 0" }} />
-                <div style={{ padding: "0.5rem 0.875rem", fontSize: "0.78rem", color: "var(--color-ink-faint)" }}>
-                  {user.email}
-                </div>
-                <button
-                  onClick={signOut}
+            {NAV_LINKS.map(({ href, label, icon: Icon }) => {
+              const active = pathname.startsWith(href);
+              return (
+                <Link
+                  key={href}
+                  href={href}
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    gap: "0.625rem",
-                    width: "100%",
-                    padding: "0.75rem 0.875rem",
+                    gap: "0.6rem",
+                    padding: "0.7rem 0.8rem",
                     borderRadius: "var(--radius-md)",
-                    border: "none",
-                    background: "transparent",
-                    color: "var(--color-rose)",
-                    fontSize: "0.9rem",
-                    fontWeight: 500,
-                    cursor: "pointer",
-                    textAlign: "left",
+                    fontSize: "var(--text-body)",
+                    fontWeight: active ? 600 : 500,
+                    textDecoration: "none",
+                    color: active ? "var(--color-ink)" : "var(--color-ink-muted)",
+                    background: active ? "var(--color-surface-alt)" : "transparent",
                   }}
                 >
-                  <LogOut size={16} />
-                  Sign out
-                </button>
-              </>
-            )}
+                  <Icon size={16} strokeWidth={1.9} />
+                  {label}
+                </Link>
+              );
+            })}
           </div>
         )}
-      </nav>
+      </header>
 
       {userOpen && (
-        <div
-          onClick={() => setUserOpen(false)}
-          style={{ position: "fixed", inset: 0, zIndex: 49 }}
-        />
+        <div onClick={() => setUserOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 55 }} aria-hidden />
       )}
 
       <style>{`
-        @media (max-width: 640px) {
-          .desktop-nav { display: none !important; }
-          .mobile-menu-btn { display: flex !important; }
-          .hide-xs { display: none !important; }
-        }
-        @media (min-width: 641px) {
-          .show-xs { display: none !important; }
+        @media (max-width: 720px) {
+          .app-nav { display: none !important; }
+          .app-menu-btn { display: flex !important; }
         }
       `}</style>
     </>

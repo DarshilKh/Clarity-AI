@@ -27,18 +27,18 @@ export function stakeLabel(stake: string): string {
   return stake.charAt(0).toUpperCase() + stake.slice(1) + " Stakes";
 }
 
-export function categoryEmoji(category: string): string {
+export function categoryLabel(category: string): string {
   const map: Record<string, string> = {
-    career:       "💼",
-    financial:    "💰",
-    relationship: "❤️",
-    health:       "🏥",
-    education:    "🎓",
-    relocation:   "🏠",
-    business:     "📊",
-    other:        "🔮",
+    career:       "Career",
+    financial:    "Financial",
+    relationship: "Relationship",
+    health:       "Health",
+    education:    "Education",
+    relocation:   "Relocation",
+    business:     "Business",
+    other:        "Other",
   };
-  return map[category] ?? "🔮";
+  return map[category] ?? "Other";
 }
 
 export function scoreColor(score: number | null): string {

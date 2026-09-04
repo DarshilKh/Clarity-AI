@@ -5,47 +5,47 @@ import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import {
-  Brain, ArrowRight, Sparkles, Shield, BarChart2,
-  Eye, CheckCircle2, Lightbulb, Clock, Star, Zap,
+  ArrowRight, Sparkles, CheckCircle2,
+  Layers, Scale, Eye, GitBranch, BarChart2, BookOpen,
 } from "lucide-react";
 
 // ── Data ─────────────────────────────────────────────────────────────────────
 
 const features = [
   {
-    icon: Brain,
-    title: "Multi-Framework Analysis",
-    desc: "Expected value, pre-mortem, and WRAP model applied simultaneously — not just a pros/cons list.",
+    icon: Layers,
+    title: "Multi-framework analysis",
+    desc: "Expected value, pre-mortem and the WRAP model applied together — not just a pros and cons list.",
     color: "var(--color-amber)",
   },
   {
     icon: Eye,
-    title: "Cognitive Bias Detector",
-    desc: "Identifies anchoring, sunk cost fallacy, status quo bias and more lurking in your thinking.",
+    title: "Potential biases surfaced",
+    desc: "Reasoning patterns worth a second look — flagged only when your own wording gives evidence for them.",
     color: "var(--color-rose)",
   },
   {
-    icon: Zap,
-    title: "Second-Order Thinking",
+    icon: GitBranch,
+    title: "Second-order effects",
     desc: "See the downstream consequences of each choice — not just the immediate impact.",
     color: "var(--color-sky)",
   },
   {
     icon: BarChart2,
-    title: "Outcome Tracking",
+    title: "Outcome tracking",
     desc: "Follow up at 30, 90, and 180 days to compare predicted vs actual outcomes.",
     color: "var(--color-sage)",
   },
   {
-    icon: Shield,
-    title: "Decision Journal",
+    icon: BookOpen,
+    title: "Decision journal",
     desc: "Every analysis is saved. Build a record of your thinking patterns and learn from your past.",
     color: "var(--color-amber)",
   },
   {
-    icon: Lightbulb,
-    title: "Actionable Recommendation",
-    desc: "No wishy-washy summaries. Clarity gives you a clear recommendation with a confidence score.",
+    icon: Scale,
+    title: "Evidence, separated from assumption",
+    desc: "Every claim traces back to something you wrote. What you did not provide is marked unknown, never filled in.",
     color: "var(--color-sky)",
   },
 ];
@@ -53,71 +53,26 @@ const features = [
 const steps = [
   {
     number: "01",
-    title: "Describe your decision",
-    desc: "Tell Clarity what you're deciding, your options, and what matters most to you.",
+    title: "Describe the decision",
+    desc: "The situation, the options you are weighing, and the constraints that actually matter.",
   },
   {
     number: "02",
-    title: "AI runs the analysis",
-    desc: "Five decision science frameworks fire simultaneously. Biases are flagged. Consequences are mapped.",
+    title: "Clarity structures it",
+    desc: "Your input is sorted into what you have established, what follows from it, and what is still unknown.",
   },
   {
     number: "03",
-    title: "Get your recommendation",
-    desc: "A clear, unbiased recommendation with a confidence score — ready in under 30 seconds.",
+    title: "Read the recommendation",
+    desc: "A clear call with a confidence level, the reasoning behind it, and the unknown that would change it.",
   },
   {
     number: "04",
-    title: "Track your outcome",
+    title: "Track the outcome",
     desc: "Check back at 30, 90, and 180 days. See how your decision played out and learn from it.",
   },
 ];
 
-const socialProof = [
-  { value: "2,400+", label: "Decisions analyzed" },
-  { value: "94%",   label: "Users report less decision anxiety" },
-  { value: "5",     label: "Frameworks per analysis" },
-  { value: "< 30s", label: "Time to recommendation" },
-];
-
-const testimonials = [
-  {
-    quote: "I was agonizing over a job offer for weeks. Clarity helped me see I was anchoring on salary and ignoring everything else. I made the call in a day.",
-    name: "Priya M.",
-    role: "Product Manager",
-    stars: 5,
-  },
-  {
-    quote: "The pre-mortem feature alone is worth it. It surfaced risks I hadn't even thought about. This is how I make every big decision now.",
-    name: "James R.",
-    role: "Startup Founder",
-    stars: 5,
-  },
-  {
-    quote: "It doesn't tell you what to do — it shows you how to think. That's the difference between every other AI tool and Clarity.",
-    name: "Sofia K.",
-    role: "Strategy Consultant",
-    stars: 5,
-  },
-];
-
-// ── Components ────────────────────────────────────────────────────────────────
-
-function Stars({ count }: { count: number }) {
-  return (
-    <div style={{ display: "flex", gap: 2, marginBottom: "0.75rem" }}>
-      {Array.from({ length: count }).map((_, i) => (
-        <Star
-          key={i}
-          size={13}
-          fill="var(--color-amber)"
-          color="var(--color-amber)"
-          strokeWidth={0}
-        />
-      ))}
-    </div>
-  );
-}
 
 /** Logo — refined balance between mark and wordmark */
 function Logo({ size = 48, wordmark = "1.55rem" }: { size?: number; wordmark?: string }) {
@@ -551,7 +506,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── Social proof bar ── */}
+      {/* ── What every analysis includes ── */}
       <section
         style={{
           borderTop: "1px solid var(--color-border)",
@@ -561,242 +516,49 @@ export default function HomePage() {
       >
         <div
           style={{
-            maxWidth: 1200,
+            maxWidth: 1180,
             margin: "0 auto",
-            padding: "2rem 1.5rem",
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-            gap: "1.5rem",
-            textAlign: "center",
+            padding: "clamp(2.5rem, 6vw, 3.5rem) clamp(1.25rem, 5vw, 3rem)",
           }}
         >
-          {socialProof.map(({ value, label }) => (
-            <div key={label}>
-              <p
-                style={{
-                  fontFamily: "var(--font-display)",
-                  fontSize: "clamp(1.6rem, 4vw, 2.1rem)",
-                  fontWeight: 700,
-                  color: "var(--color-ink)",
-                  letterSpacing: "-0.03em",
-                  lineHeight: 1,
-                  marginBottom: "0.35rem",
-                }}
-              >
-                {value}
-              </p>
-              <p
-                style={{
-                  fontSize: "0.85rem",
-                  color: "var(--color-ink-faint)",
-                  fontWeight: 500,
-                }}
-              >
-                {label}
-              </p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ── How it works ── */}
-      <section
-        id="how-it-works"
-        style={{
-          maxWidth: 1200,
-          margin: "0 auto",
-          padding: "5rem 1.5rem",
-        }}
-      >
-        <div style={{ textAlign: "center", marginBottom: "3rem" }}>
-          <span
-            style={{
-              display: "inline-block",
-              fontSize: "0.78rem",
-              fontWeight: 700,
-              letterSpacing: "0.1em",
-              textTransform: "uppercase",
-              color: "var(--color-amber)",
-              marginBottom: "0.75rem",
-            }}
-          >
-            The process
-          </span>
-          <h2
-            style={{
-              fontFamily: "var(--font-display)",
-              fontSize: "clamp(1.75rem, 4vw, 2.4rem)",
-              fontWeight: 700,
-              color: "var(--color-ink)",
-              letterSpacing: "-0.03em",
-              marginBottom: "0.75rem",
-            }}
-          >
-            From confusion to clarity in 4 steps
-          </h2>
           <p
-            style={{
-              fontSize: "1.05rem",
-              color: "var(--color-ink-muted)",
-              maxWidth: 520,
-              margin: "0 auto",
-              lineHeight: 1.7,
-            }}
+            className="eyebrow"
+            style={{ marginBottom: "1.75rem", textAlign: "center" }}
           >
-            No lengthy onboarding. No complex setup. Just describe your decision and let the
-            science do the work.
+            Every analysis includes
           </p>
-        </div>
-
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-            gap: "1.25rem",
-          }}
-        >
-          {steps.map(({ number, title, desc }) => (
-            <div
-              key={number}
-              className="card"
-              style={{ position: "relative", paddingTop: "1.5rem" }}
-            >
-              <span
-                style={{
-                  fontFamily: "var(--font-mono)",
-                  fontSize: "0.75rem",
-                  fontWeight: 700,
-                  color: "var(--color-amber)",
-                  letterSpacing: "0.05em",
-                  display: "block",
-                  marginBottom: "0.75rem",
-                }}
-              >
-                {number}
-              </span>
-              <h3
-                style={{
-                  fontFamily: "var(--font-display)",
-                  fontSize: "1.1rem",
-                  fontWeight: 700,
-                  color: "var(--color-ink)",
-                  marginBottom: "0.5rem",
-                }}
-              >
-                {title}
-              </h3>
-              <p
-                style={{
-                  fontSize: "0.93rem",
-                  color: "var(--color-ink-muted)",
-                  lineHeight: 1.65,
-                }}
-              >
-                {desc}
-              </p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ── Features ── */}
-      <section
-        id="features"
-        style={{
-          background: "var(--color-surface-raised)",
-          borderTop: "1px solid var(--color-border)",
-          borderBottom: "1px solid var(--color-border)",
-        }}
-      >
-        <div
-          style={{
-            maxWidth: 1200,
-            margin: "0 auto",
-            padding: "5rem 1.5rem",
-          }}
-        >
-          <div style={{ textAlign: "center", marginBottom: "3rem" }}>
-            <span
-              style={{
-                display: "inline-block",
-                fontSize: "0.78rem",
-                fontWeight: 700,
-                letterSpacing: "0.1em",
-                textTransform: "uppercase",
-                color: "var(--color-amber)",
-                marginBottom: "0.75rem",
-              }}
-            >
-              Features
-            </span>
-            <h2
-              style={{
-                fontFamily: "var(--font-display)",
-                fontSize: "clamp(1.75rem, 4vw, 2.4rem)",
-                fontWeight: 700,
-                color: "var(--color-ink)",
-                letterSpacing: "-0.03em",
-                marginBottom: "0.75rem",
-              }}
-            >
-              What makes Clarity different
-            </h2>
-            <p
-              style={{
-                fontSize: "1.05rem",
-                color: "var(--color-ink-muted)",
-                maxWidth: 480,
-                margin: "0 auto",
-                lineHeight: 1.7,
-              }}
-            >
-              Not another chatbot. A structured thinking partner built on decades of
-              decision research.
-            </p>
-          </div>
 
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
-              gap: "1rem",
+              gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 200px), 1fr))",
+              gap: "clamp(1.5rem, 4vw, 2.5rem)",
             }}
           >
-            {features.map(({ icon: Icon, title, desc, color }) => (
-              <div
-                key={title}
-                className="card card-hover"
-                style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}
-              >
-                <div
-                  style={{
-                    width: 42,
-                    height: 42,
-                    borderRadius: "var(--radius-md)",
-                    background: "var(--color-surface-alt)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    flexShrink: 0,
-                  }}
-                >
-                  <Icon size={20} color={color} strokeWidth={2} />
-                </div>
-                <h3
-                  style={{
-                    fontFamily: "var(--font-display)",
-                    fontSize: "1.1rem",
-                    fontWeight: 700,
-                    color: "var(--color-ink)",
-                  }}
-                >
-                  {title}
-                </h3>
+            {[
+              { label: "A clear verdict", desc: "The recommendation, stated plainly" },
+              { label: "A confidence level", desc: "How much rests on what's still unknown" },
+              { label: "The trade-offs", desc: "Each option weighed side by side" },
+              { label: "What's missing", desc: "The gaps that would change the answer" },
+            ].map(({ label, desc }) => (
+              <div key={label} style={{ textAlign: "center" }}>
                 <p
                   style={{
-                    fontSize: "0.93rem",
+                    fontFamily: "var(--font-display)",
+                    fontSize: "1.05rem",
+                    fontWeight: 600,
+                    letterSpacing: "-0.02em",
+                    color: "var(--color-ink)",
+                    marginBottom: "0.35rem",
+                  }}
+                >
+                  {label}
+                </p>
+                <p
+                  style={{
+                    fontSize: "0.85rem",
                     color: "var(--color-ink-muted)",
-                    lineHeight: 1.65,
+                    lineHeight: 1.55,
                   }}
                 >
                   {desc}
@@ -807,218 +569,419 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── Testimonials ── */}
+      {/* ── How it works ── */}
       <section
+        id="how-it-works"
         style={{
-          maxWidth: 1200,
+          maxWidth: 1180,
           margin: "0 auto",
-          padding: "5rem 1.5rem",
+          padding: "clamp(4rem, 9vw, 6.5rem) clamp(1.25rem, 5vw, 3rem)",
         }}
       >
-        <div style={{ textAlign: "center", marginBottom: "3rem" }}>
-          <span
-            style={{
-              display: "inline-block",
-              fontSize: "0.78rem",
-              fontWeight: 700,
-              letterSpacing: "0.1em",
-              textTransform: "uppercase",
-              color: "var(--color-amber)",
-              marginBottom: "0.75rem",
-            }}
-          >
-            What people say
+        <div style={{ marginBottom: "clamp(2.5rem, 5vw, 3.5rem)", maxWidth: 620 }}>
+          <span className="eyebrow" style={{ marginBottom: "0.9rem" }}>
+            How it works
           </span>
           <h2
             style={{
               fontFamily: "var(--font-display)",
-              fontSize: "clamp(1.75rem, 4vw, 2.4rem)",
-              fontWeight: 700,
+              fontSize: "clamp(1.65rem, 4vw, 2.4rem)",
+              fontWeight: 600,
               color: "var(--color-ink)",
-              letterSpacing: "-0.03em",
+              letterSpacing: "-0.035em",
+              lineHeight: 1.15,
+              marginBottom: "0.9rem",
             }}
           >
-            Decisions people are proud of
+            From a tangled choice to a structured decision
           </h2>
+          <p
+            style={{
+              fontSize: "1.02rem",
+              color: "var(--color-ink-muted)",
+              lineHeight: 1.7,
+            }}
+          >
+            No onboarding, no setup. You describe the decision once — everything else follows from it.
+          </p>
+        </div>
+
+        <ol
+          style={{
+            listStyle: "none",
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 240px), 1fr))",
+            gap: "clamp(2rem, 4vw, 2.5rem)",
+          }}
+        >
+          {steps.map(({ number, title, desc }) => (
+            <li key={number}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.75rem",
+                  marginBottom: "1rem",
+                }}
+              >
+                <span
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    fontSize: "0.72rem",
+                    fontWeight: 600,
+                    color: "var(--color-amber)",
+                    letterSpacing: "0.06em",
+                  }}
+                >
+                  {number}
+                </span>
+                <span
+                  aria-hidden
+                  style={{ flex: 1, height: 1, background: "var(--color-border)" }}
+                />
+              </div>
+              <h3
+                style={{
+                  fontFamily: "var(--font-display)",
+                  fontSize: "1.12rem",
+                  fontWeight: 600,
+                  letterSpacing: "-0.02em",
+                  color: "var(--color-ink)",
+                  marginBottom: "0.55rem",
+                }}
+              >
+                {title}
+              </h3>
+              <p
+                style={{
+                  fontSize: "0.92rem",
+                  color: "var(--color-ink-muted)",
+                  lineHeight: 1.7,
+                }}
+              >
+                {desc}
+              </p>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      {/* ── The distinguishing idea ── */}
+      <section
+        style={{
+          borderTop: "1px solid var(--color-border)",
+          borderBottom: "1px solid var(--color-border)",
+          background: "var(--color-surface-raised)",
+        }}
+      >
+        <div
+          style={{
+            maxWidth: 1180,
+            margin: "0 auto",
+            padding: "clamp(4rem, 9vw, 6rem) clamp(1.25rem, 5vw, 3rem)",
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 340px), 1fr))",
+            gap: "clamp(2rem, 5vw, 4.5rem)",
+            alignItems: "start",
+          }}
+        >
+          <div>
+            <span className="eyebrow" style={{ marginBottom: "0.9rem" }}>
+              Why it&apos;s different
+            </span>
+            <h2
+              style={{
+                fontFamily: "var(--font-display)",
+                fontSize: "clamp(1.65rem, 4vw, 2.4rem)",
+                fontWeight: 600,
+                color: "var(--color-ink)",
+                letterSpacing: "-0.035em",
+                lineHeight: 1.15,
+              }}
+            >
+              It tells you when it doesn&apos;t know.
+            </h2>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+            <p style={{ fontSize: "1.02rem", color: "var(--color-ink-soft)", lineHeight: 1.75 }}>
+              Most tools produce a confident answer no matter how little you gave them. Clarity
+              won&apos;t. If your options are described too thinly to tell apart, it says so plainly —
+              and names the missing detail that would settle it.
+            </p>
+            <p style={{ fontSize: "1.02rem", color: "var(--color-ink-muted)", lineHeight: 1.75 }}>
+              Nothing about your options is invented. No assumed salary, culture, risk or timeline.
+              Scores appear only when your own facts justify them, and confidence reflects how much of
+              the recommendation still rests on something unresolved.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Features ── */}
+      <section
+        id="features"
+        style={{
+          maxWidth: 1180,
+          margin: "0 auto",
+          padding: "clamp(4rem, 9vw, 6.5rem) clamp(1.25rem, 5vw, 3rem)",
+        }}
+      >
+        <div style={{ marginBottom: "clamp(2.5rem, 5vw, 3.5rem)", maxWidth: 620 }}>
+          <span className="eyebrow" style={{ marginBottom: "0.9rem" }}>
+            What you get
+          </span>
+          <h2
+            style={{
+              fontFamily: "var(--font-display)",
+              fontSize: "clamp(1.65rem, 4vw, 2.4rem)",
+              fontWeight: 600,
+              color: "var(--color-ink)",
+              letterSpacing: "-0.035em",
+              lineHeight: 1.15,
+              marginBottom: "0.9rem",
+            }}
+          >
+            A complete breakdown, not a paragraph of advice
+          </h2>
+          <p style={{ fontSize: "1.02rem", color: "var(--color-ink-muted)", lineHeight: 1.7 }}>
+            One decision produces every layer below — structured, scannable, and grounded in what you
+            actually told it.
+          </p>
         </div>
 
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-            gap: "1rem",
+            gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 290px), 1fr))",
+            gap: "clamp(1.75rem, 3vw, 2.25rem) clamp(2rem, 4vw, 3rem)",
           }}
         >
-          {testimonials.map(({ quote, name, role, stars }) => (
-            <div
-              key={name}
-              className="card"
-              style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}
-            >
-              <Stars count={stars} />
-              <p
+          {features.map(({ icon: Icon, title, desc }) => (
+            <div key={title} style={{ borderTop: "1px solid var(--color-border)", paddingTop: "1.25rem" }}>
+              <Icon
+                size={18}
+                color="var(--color-ink-faint)"
+                strokeWidth={1.75}
+                style={{ marginBottom: "0.9rem" }}
+                aria-hidden
+              />
+              <h3
                 style={{
-                  fontSize: "0.95rem",
-                  color: "var(--color-ink-muted)",
-                  lineHeight: 1.7,
-                  flex: 1,
-                  marginBottom: "1rem",
+                  fontFamily: "var(--font-display)",
+                  fontSize: "1.05rem",
+                  fontWeight: 600,
+                  letterSpacing: "-0.02em",
+                  color: "var(--color-ink)",
+                  marginBottom: "0.5rem",
                 }}
               >
-                &ldquo;{quote}&rdquo;
+                {title}
+              </h3>
+              <p style={{ fontSize: "0.92rem", color: "var(--color-ink-muted)", lineHeight: 1.7 }}>
+                {desc}
               </p>
-              <div>
-                <p
-                  style={{
-                    fontSize: "0.9rem",
-                    fontWeight: 700,
-                    color: "var(--color-ink)",
-                  }}
-                >
-                  {name}
-                </p>
-                <p style={{ fontSize: "0.82rem", color: "var(--color-ink-faint)" }}>
-                  {role}
-                </p>
-              </div>
             </div>
           ))}
         </div>
       </section>
 
-      {/* ── CTA ── */}
+      {/* ── What the output looks like ── */}
       <section
         style={{
-          maxWidth: 1200,
-          margin: "0 auto",
-          padding: "0 1.5rem 5rem",
+          borderTop: "1px solid var(--color-border)",
+          background: "var(--color-surface-raised)",
         }}
       >
         <div
           style={{
-            background: "var(--color-ink)",
-            borderRadius: "var(--radius-xl)",
-            padding: "clamp(2.5rem, 6vw, 4rem) clamp(1.5rem, 4vw, 3rem)",
-            textAlign: "center",
-            color: "white",
-            position: "relative",
-            overflow: "hidden",
+            maxWidth: 1180,
+            margin: "0 auto",
+            padding: "clamp(4rem, 9vw, 6rem) clamp(1.25rem, 5vw, 3rem)",
           }}
         >
-          <div
-            aria-hidden
-            style={{
-              position: "absolute",
-              top: "-40%",
-              left: "50%",
-              transform: "translateX(-50%)",
-              width: 500,
-              height: 300,
-              borderRadius: "50%",
-              background:
-                "radial-gradient(ellipse, color-mix(in srgb, var(--color-amber) 18%, transparent) 0%, transparent 70%)",
-              pointerEvents: "none",
-            }}
-          />
-
-          <div style={{ position: "relative" }}>
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "0.4rem",
-                padding: "0.35rem 1rem",
-                borderRadius: "var(--radius-full)",
-                background: "rgba(255,255,255,0.08)",
-                border: "1px solid rgba(255,255,255,0.12)",
-                marginBottom: "1.5rem",
-              }}
-            >
-              <Clock size={13} color="rgba(255,255,255,0.7)" />
-              <span
-                style={{
-                  fontSize: "0.82rem",
-                  fontWeight: 600,
-                  color: "rgba(255,255,255,0.7)",
-                }}
-              >
-                Ready in under 30 seconds
-              </span>
-            </div>
-
+          <div style={{ marginBottom: "clamp(2rem, 4vw, 2.75rem)", maxWidth: 620 }}>
+            <span className="eyebrow" style={{ marginBottom: "0.9rem" }}>
+              The output
+            </span>
             <h2
               style={{
                 fontFamily: "var(--font-display)",
-                fontSize: "clamp(1.85rem, 4vw, 2.6rem)",
-                fontWeight: 700,
-                color: "white",
-                marginBottom: "1rem",
-                letterSpacing: "-0.03em",
-                lineHeight: 1.1,
+                fontSize: "clamp(1.65rem, 4vw, 2.4rem)",
+                fontWeight: 600,
+                color: "var(--color-ink)",
+                letterSpacing: "-0.035em",
+                lineHeight: 1.15,
               }}
             >
-              Your next big decision starts here.
+              You&apos;ll understand the answer in ten seconds
             </h2>
+          </div>
+
+          {/* Verdict preview — mirrors the real analysis screen */}
+          <div
+            style={{
+              background: "var(--color-ink)",
+              borderRadius: "var(--radius-xl)",
+              padding: "clamp(1.5rem, 4vw, 2.25rem)",
+              maxWidth: 720,
+            }}
+          >
+            <p
+              style={{
+                fontSize: "0.72rem",
+                fontWeight: 600,
+                letterSpacing: "0.12em",
+                textTransform: "uppercase",
+                color: "rgba(255,255,255,0.45)",
+                marginBottom: "1rem",
+              }}
+            >
+              Clarity&apos;s verdict
+            </p>
+
+            <p style={{ fontSize: "0.78rem", fontWeight: 600, color: "rgba(255,255,255,0.5)", marginBottom: "0.5rem" }}>
+              Recommended
+            </p>
 
             <p
               style={{
-                fontSize: "1.05rem",
-                color: "rgba(255,255,255,0.65)",
-                marginBottom: "2rem",
-                maxWidth: 480,
-                margin: "0 auto 2rem",
-                lineHeight: 1.65,
+                fontFamily: "var(--font-display)",
+                fontSize: "clamp(1.4rem, 3.5vw, 2rem)",
+                fontWeight: 600,
+                letterSpacing: "-0.03em",
+                lineHeight: 1.12,
+                color: "#fff",
+                marginBottom: "1.25rem",
               }}
             >
-              Free to start. No BS, no fluff — just better thinking.
+              Stay employed, build nights and weekends
             </p>
 
             <div
               style={{
                 display: "flex",
                 alignItems: "center",
-                justifyContent: "center",
-                gap: "0.875rem",
+                gap: "0.75rem",
+                paddingBottom: "1.25rem",
+                marginBottom: "1.25rem",
+                borderBottom: "1px solid rgba(255,255,255,0.12)",
                 flexWrap: "wrap",
               }}
             >
-              <Link
-                href="/decision/new"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "0.5rem",
-                  padding: "0.95rem 2rem",
-                  background: "var(--color-amber)",
-                  color: "white",
-                  borderRadius: "var(--radius-md)",
-                  fontWeight: 600,
-                  fontSize: "1rem",
-                  textDecoration: "none",
-                }}
+              <span style={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.5)" }}>Confidence</span>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.95rem", fontWeight: 600, color: "#fff" }}>
+                70%
+              </span>
+              <span style={{ color: "rgba(255,255,255,0.25)" }}>·</span>
+              <span style={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.72)", fontWeight: 500 }}>
+                Medium
+              </span>
+              <span
+                aria-hidden
+                style={{ flex: 1, minWidth: 60, height: 2, background: "rgba(255,255,255,0.14)", borderRadius: 1 }}
               >
-                Start for Free
-                <ArrowRight size={16} />
-              </Link>
-              <Link
-                href="/auth/login"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "0.5rem",
-                  padding: "0.95rem 2rem",
-                  background: "rgba(255,255,255,0.08)",
-                  color: "rgba(255,255,255,0.85)",
-                  borderRadius: "var(--radius-md)",
-                  fontWeight: 500,
-                  fontSize: "1rem",
-                  textDecoration: "none",
-                  border: "1px solid rgba(255,255,255,0.12)",
-                }}
-              >
-                Sign in
-              </Link>
+                <span
+                  style={{
+                    display: "block",
+                    width: "70%",
+                    height: "100%",
+                    background: "var(--color-amber)",
+                    borderRadius: 1,
+                  }}
+                />
+              </span>
             </div>
+
+            <p
+              style={{
+                fontSize: "0.72rem",
+                fontWeight: 600,
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+                color: "rgba(255,255,255,0.4)",
+                marginBottom: "0.5rem",
+              }}
+            >
+              What would change this
+            </p>
+            <p style={{ fontSize: "0.95rem", lineHeight: 1.7, color: "rgba(255,255,255,0.62)", maxWidth: "62ch" }}>
+              The recommendation rests on your stated runway and the three customers who said they&apos;d
+              pay. How quickly that revenue actually materialises is unknown — if it lands sooner than
+              expected, going full-time becomes the stronger call.
+            </p>
+          </div>
+
+          <p style={{ fontSize: "0.82rem", color: "var(--color-ink-faint)", marginTop: "1rem" }}>
+            An illustration of the verdict panel — every analysis also includes the option comparison,
+            pre-mortem, second-order effects and open questions.
+          </p>
+        </div>
+      </section>
+
+      {/* ── CTA ── */}
+      <section
+        style={{
+          maxWidth: 1180,
+          margin: "0 auto",
+          padding: "clamp(4rem, 9vw, 6rem) clamp(1.25rem, 5vw, 3rem)",
+        }}
+      >
+        <div
+          style={{
+            borderTop: "1px solid var(--color-border)",
+            paddingTop: "clamp(2.5rem, 6vw, 4rem)",
+            display: "flex",
+            alignItems: "flex-end",
+            justifyContent: "space-between",
+            gap: "2rem",
+            flexWrap: "wrap",
+          }}
+        >
+          <div style={{ maxWidth: 520 }}>
+            <h2
+              style={{
+                fontFamily: "var(--font-display)",
+                fontSize: "clamp(1.75rem, 4.5vw, 2.6rem)",
+                fontWeight: 600,
+                color: "var(--color-ink)",
+                letterSpacing: "-0.035em",
+                lineHeight: 1.12,
+                marginBottom: "0.9rem",
+              }}
+            >
+              What are you deciding?
+            </h2>
+            <p style={{ fontSize: "1.02rem", color: "var(--color-ink-muted)", lineHeight: 1.7 }}>
+              Write it out once. You&apos;ll only be asked to create an account when your analysis is
+              ready to run — nothing you&apos;ve written is lost along the way.
+            </p>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+            <Link
+              href="/decision/new"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "0.5rem",
+                padding: "0.95rem 2rem",
+                background: "var(--color-ink)",
+                color: "white",
+                borderRadius: "var(--radius-md)",
+                fontWeight: 600,
+                fontSize: "1rem",
+                textDecoration: "none",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Analyze a decision
+              <ArrowRight size={16} />
+            </Link>
+            <p style={{ fontSize: "0.82rem", color: "var(--color-ink-faint)", textAlign: "center" }}>
+              2 analyses per day free
+            </p>
           </div>
         </div>
       </section>
@@ -1032,23 +995,23 @@ export default function HomePage() {
       >
         <div
           style={{
-            maxWidth: 1200,
+            maxWidth: 1180,
             margin: "0 auto",
-            padding: "2rem 1.5rem",
+            padding: "2.25rem clamp(1.25rem, 5vw, 3rem)",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
             flexWrap: "wrap",
-            gap: "1rem",
+            gap: "1.25rem",
           }}
         >
-          <Logo size={34} wordmark="1.15rem" />
+          <Logo size={28} wordmark="1.1rem" />
 
-          <div style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap" }}>
+          <nav style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap" }}>
             {[
-              { label: "Dashboard", href: "/dashboard" },
-              { label: "New Decision", href: "/decision/new" },
-              { label: "Journal", href: "/journal" },
+              { label: "How it works", href: "#how-it-works" },
+              { label: "What you get", href: "#features" },
+              { label: "New decision", href: "/decision/new" },
               { label: "Sign in", href: "/auth/login" },
             ].map(({ label, href }) => (
               <Link
@@ -1064,7 +1027,7 @@ export default function HomePage() {
                 {label}
               </Link>
             ))}
-          </div>
+          </nav>
 
           <p style={{ fontSize: "0.8rem", color: "var(--color-ink-faint)" }}>
             © {new Date().getFullYear()} Clarity

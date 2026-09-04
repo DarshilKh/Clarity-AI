@@ -22,13 +22,13 @@ const dmMono = DM_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Clarity — AI Decision Assistant",
+  title: "Clarity — Structured Decision Analysis",
   description:
-    "Make high-stakes decisions with clarity. AI-powered rational thinking using expected value, pre-mortem, WRAP model, and cognitive bias detection.",
-  keywords: ["decision making", "AI assistant", "rational thinking", "cognitive bias", "productivity"],
+    "Turn a difficult choice into a structured decision. Clarity separates what you know from what you're assuming, maps the trade-offs, and shows what would change the recommendation.",
+  keywords: ["decision making", "decision analysis", "trade-offs", "structured thinking", "pre-mortem"],
   openGraph: {
-    title: "Clarity — AI Decision Assistant",
-    description: "Remove emotional bias from your biggest decisions.",
+    title: "Clarity — Structured Decision Analysis",
+    description: "Turn a difficult choice into a structured decision.",
     type: "website",
   },
 };

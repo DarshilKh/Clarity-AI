@@ -23,7 +23,20 @@ export default function Toasts() {
 
   return (
     <div
-      style={{ position: "fixed", bottom: 24, right: 24, zIndex: 9999, display: "flex", flexDirection: "column", gap: 8 }}
+      role="status"
+      aria-live="polite"
+      style={{
+        position: "fixed",
+        bottom: "clamp(1rem, 4vw, 1.5rem)",
+        right: "clamp(1rem, 4vw, 1.5rem)",
+        left: "clamp(1rem, 4vw, auto)",
+        zIndex: 9999,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "flex-end",
+        gap: 8,
+        pointerEvents: "none",
+      }}
     >
       <AnimatePresence>
         {toasts.map((toast) => {
@@ -40,22 +53,38 @@ export default function Toasts() {
                 background: style.bg,
                 border: `1px solid ${style.border}`,
                 borderRadius: "var(--radius-md)",
-                padding: "0.75rem 1rem",
+                padding: "0.75rem 0.9rem",
                 display: "flex",
-                alignItems: "center",
-                gap: "0.625rem",
-                minWidth: 260,
-                maxWidth: 360,
-                boxShadow: "0 4px 16px rgba(13,13,13,0.1)",
+                alignItems: "flex-start",
+                gap: "0.6rem",
+                width: "min(100%, 380px)",
+                boxShadow: "var(--shadow-md)",
+                pointerEvents: "auto",
               }}
             >
-              <Icon size={16} color={style.color} strokeWidth={2} style={{ flexShrink: 0 }} />
-              <span style={{ fontSize: "0.875rem", color: "var(--color-ink-soft)", flex: 1 }}>
+              <Icon size={16} color={style.color} strokeWidth={2} style={{ flexShrink: 0, marginTop: 1 }} />
+              <span
+                style={{
+                  fontSize: "var(--text-sm)",
+                  color: "var(--color-ink-soft)",
+                  flex: 1,
+                  lineHeight: 1.5,
+                }}
+              >
                 {toast.message}
               </span>
               <button
                 onClick={() => removeToast(toast.id)}
-                style={{ color: "var(--color-ink-faint)", background: "none", border: "none", cursor: "pointer" }}
+                aria-label="Dismiss"
+                style={{
+                  color: "var(--color-ink-faint)",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  flexShrink: 0,
+                  display: "flex",
+                  marginTop: 1,
+                }}
               >
                 <X size={14} />
               </button>
