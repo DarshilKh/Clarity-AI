@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createMiddlewareSupabaseClient } from "@/lib/supabase-middleware";
 
-// Routes that require the user to be logged in
+// Routes that require the user to be logged in.
+// Note: /decision/new is deliberately public — a visitor can compose a whole
+// decision before being asked to create an account (the auth wall sits at
+// Analyze). Saved decisions at /decision/[id] still require auth.
 const PROTECTED_ROUTES = ["/dashboard", "/decision", "/journal"];
+const PUBLIC_EXCEPTIONS = ["/decision/new"];
 
 // Routes only for guests (redirect logged-in users away)
 const AUTH_ROUTES = ["/auth/login", "/auth/signup", "/auth/forgot-password"];
@@ -21,16 +25,26 @@ export async function middleware(req: NextRequest) {
 
   const isAuthenticated = !!session;
 
+  const isPublicException = PUBLIC_EXCEPTIONS.some((r) => pathname.startsWith(r));
+
   // Redirect unauthenticated users away from protected routes
-  if (!isAuthenticated && PROTECTED_ROUTES.some((r) => pathname.startsWith(r))) {
+  if (
+    !isAuthenticated &&
+    !isPublicException &&
+    PROTECTED_ROUTES.some((r) => pathname.startsWith(r))
+  ) {
     const loginUrl = new URL("/auth/login", req.url);
     loginUrl.searchParams.set("next", pathname); // preserve intended destination
     return NextResponse.redirect(loginUrl);
   }
 
-  // Redirect authenticated users away from auth pages
+  // Redirect authenticated users away from auth pages, honouring an intended
+  // destination so a pending analysis resumes instead of dumping them on the
+  // dashboard.
   if (isAuthenticated && AUTH_ROUTES.some((r) => pathname.startsWith(r))) {
-    return NextResponse.redirect(new URL("/dashboard", req.url));
+    const next = req.nextUrl.searchParams.get("next");
+    const destination = next && next.startsWith("/") ? next : "/dashboard";
+    return NextResponse.redirect(new URL(destination, req.url));
   }
 
   return res;
