@@ -16,44 +16,18 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         flexDirection: "column",
       }}
     >
-      {/* Minimal header */}
-      <header
-        style={{
-          padding: "1rem 1.5rem",
-          borderBottom: "1px solid var(--color-border)",
-          background: "var(--color-surface-raised)",
-        }}
-      >
+      <header style={{ padding: "1.25rem clamp(1rem, 4vw, 2rem)" }}>
         <Link
           href="/"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "0.45rem",
-            textDecoration: "none",
-          }}
+          style={{ display: "inline-flex", alignItems: "center", gap: "0.45rem", textDecoration: "none" }}
         >
-          <div
-            style={{
-              width: 38,
-              height: 38,
-              position: "relative",
-              flexShrink: 0,
-            }}
-          >
-            <Image
-              src="/logo-mark.png"
-              alt="Clarity"
-              fill
-              priority
-              sizes="38px"
-              style={{ objectFit: "contain" }}
-            />
-          </div>
+          <span style={{ width: 30, height: 30, position: "relative", flexShrink: 0 }}>
+            <Image src="/logo-mark.png" alt="" fill priority sizes="30px" style={{ objectFit: "contain" }} />
+          </span>
           <span
             style={{
               fontFamily: "var(--font-display)",
-              fontSize: "1.25rem",
+              fontSize: "1.15rem",
               fontWeight: 500,
               letterSpacing: "-0.02em",
               color: "var(--color-ink)",
@@ -65,33 +39,25 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         </Link>
       </header>
 
-      {/* Centered content */}
       <main
         style={{
           flex: 1,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          padding: "2rem 1rem",
+          padding: "1rem clamp(1rem, 4vw, 2rem) 3rem",
         }}
       >
-        <div style={{ width: "100%", maxWidth: 420 }}>{children}</div>
+        <div style={{ width: "100%", maxWidth: 400 }}>{children}</div>
       </main>
 
-      {/* Footer */}
       <footer
         style={{
-          padding: "1rem 1.5rem",
+          padding: "1.25rem clamp(1rem, 4vw, 2rem)",
           textAlign: "center",
-          fontSize: "0.75rem",
-          color: "var(--color-ink-faint)",
-          borderTop: "1px solid var(--color-border)",
         }}
       >
-        By signing in you agree to our{" "}
-        <Link href="/terms" style={{ color: "var(--color-amber)" }}>Terms</Link>
-        {" & "}
-        <Link href="/privacy" style={{ color: "var(--color-amber)" }}>Privacy Policy</Link>
+        <p className="meta">Clarity keeps your decisions private to your account.</p>
       </footer>
     </div>
   );
