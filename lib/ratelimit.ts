@@ -13,15 +13,28 @@ function getRedis(): Redis {
   return redis;
 }
 
+// Allowances live in lib/plan.ts so client components can read them without
+// pulling in Redis. Re-exported here for existing server-side consumers.
+import { FREE_DAILY_ANALYSES, ANON_FREE_ANALYSES } from "./plan";
+export { FREE_DAILY_ANALYSES, ANON_FREE_ANALYSES };
+
 // ─── Rate limiters ────────────────────────────────────────────────────────────
 
-// Free tier: 2 analyses per 24 hours per user/IP
-// Why 2? Enough to try the product meaningfully, forces upgrade for power users
+// Quota is consumed only after an analysis actually succeeds, so a failed
+// Groq call never costs the user one of their two daily analyses.
 export const analysisRatelimit = new Ratelimit({
   redis: getRedis(),
-  limiter: Ratelimit.slidingWindow(2, "24 h"),
+  limiter: Ratelimit.slidingWindow(FREE_DAILY_ANALYSES, "24 h"),
   analytics: true,
   prefix: "clarity:analysis",
+});
+
+// Device/IP-scoped allowance for unauthenticated callers.
+export const anonAnalysisRatelimit = new Ratelimit({
+  redis: getRedis(),
+  limiter: Ratelimit.slidingWindow(Math.max(ANON_FREE_ANALYSES, 1), "24 h"),
+  analytics: true,
+  prefix: "clarity:analysis:anon",
 });
 
 // Auth endpoints: 5 attempts per 15 minutes (prevents brute force)
@@ -40,12 +53,14 @@ export const passwordResetRatelimit = new Ratelimit({
   prefix: "clarity:pwreset",
 });
 
-// ─── Helper: get identifier (prefer user ID, fallback to IP) ─────────────────
+// ─── Helper: get identifier (prefer user ID, fallback to device/IP) ───────────
 export function getRatelimitIdentifier(
   req: Request,
-  userId?: string | null
+  userId?: string | null,
+  deviceId?: string | null
 ): string {
   if (userId) return `user:${userId}`;
+  if (deviceId) return `device:${deviceId}`;
   const ip =
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
     req.headers.get("x-real-ip") ??
@@ -55,18 +70,16 @@ export function getRatelimitIdentifier(
 
 // ─── Helper: build 429 response with helpful headers ─────────────────────────
 export function rateLimitResponse(reset: number, remaining: number) {
-  const retryAfterSeconds = Math.ceil((reset - Date.now()) / 1000);
+  const retryAfterSeconds = Math.max(1, Math.ceil((reset - Date.now()) / 1000));
   const resetDate = new Date(reset).toISOString();
 
   return new Response(
     JSON.stringify({
-      error: "rate_limit_exceeded",
-      message:
-        "You've used your 2 free analyses for today. Upgrade to Pro for unlimited analyses.",
+      error: "daily_limit_reached",
+      message: `You've used all ${FREE_DAILY_ANALYSES} of your free analyses for today. Your next one unlocks when the day resets.`,
       resetAt: resetDate,
       retryAfterSeconds,
       remaining,
-      upgradeUrl: `${process.env.NEXT_PUBLIC_APP_URL}/pricing`,
     }),
     {
       status: 429,

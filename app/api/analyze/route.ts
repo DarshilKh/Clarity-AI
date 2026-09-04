@@ -1,46 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { analyzeDecision } from "@/lib/analyze";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
-import {
-  analysisRatelimit,
-  getRatelimitIdentifier,
-  rateLimitResponse,
-} from "@/lib/ratelimit";
+import { checkUsage, consumeUsage, getDeviceId } from "@/lib/usage";
+import { rateLimitResponse } from "@/lib/ratelimit";
 import type { AnalyzeRequest } from "@/types";
 
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   try {
-    // ── 1. Get user session (optional — guests are rate-limited by IP) ──────
+    // ── 1. Identify the caller ───────────────────────────────────────────────
     const supabase = await createServerSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
+    const userId = user?.id ?? null;
+    const deviceId = await getDeviceId();
 
-    // ── 2. Rate limiting ─────────────────────────────────────────────────────
-    // Authenticated users: limited by user ID (fairer — not by IP which can change)
-    // Guest users: limited by IP
-    // If the rate limit backend itself is unreachable, fail open rather than
-    // taking down the core feature — an outage in Redis shouldn't mean nobody
-    // can get an analysis.
-    const identifier = getRatelimitIdentifier(req, user?.id ?? null);
-    let remaining = -1;
-    let reset = Date.now();
-    if (process.env.DISABLE_RATE_LIMIT === "true") {
-      console.warn("[/api/analyze] rate limiting disabled via DISABLE_RATE_LIMIT env var");
-    } else {
-      try {
-        const result = await analysisRatelimit.limit(identifier);
-        if (!result.success) {
-          return rateLimitResponse(result.reset, result.remaining);
-        }
-        remaining = result.remaining;
-        reset = result.reset;
-      } catch (rateLimitErr) {
-        console.error("[/api/analyze] rate limiter unavailable, failing open", rateLimitErr);
-      }
-    }
-
-    // ── 3. Parse and validate body ────────────────────────────────────────────
+    // ── 2. Validate the body before spending anything ────────────────────────
     const body = (await req.json()) as AnalyzeRequest;
 
     if (!body.intake) {
@@ -72,42 +47,66 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ── 4. Run AI analysis ────────────────────────────────────────────────────
+    // ── 3. Usage check — never consumes quota here ───────────────────────────
+    // An unauthenticated caller with no anonymous allowance left gets a
+    // distinct 401 so the client can raise the auth wall rather than showing
+    // a generic error.
+    const usage = await checkUsage(req, userId, deviceId);
+
+    if (!userId && usage.exhausted) {
+      return NextResponse.json(
+        {
+          error: "auth_required",
+          message: "Create a free account to run this analysis.",
+        },
+        { status: 401 }
+      );
+    }
+
+    if (usage.exhausted) {
+      return rateLimitResponse(usage.reset, 0);
+    }
+
+    // ── 4. Run the analysis ──────────────────────────────────────────────────
     const analysis = await analyzeDecision(intake);
 
-    // ── 5. Return with rate limit headers ─────────────────────────────────────
+    // ── 5. Only a successful analysis costs the user an analysis ─────────────
+    const afterUsage = await consumeUsage(req, userId, deviceId);
+
     return NextResponse.json(
-      { analysis },
+      { analysis, usage: { remaining: afterUsage.remaining, limit: afterUsage.limit } },
       {
         status: 200,
         headers: {
-          "X-RateLimit-Remaining": String(remaining - 1),
-          "X-RateLimit-Reset": new Date(reset).toISOString(),
+          "X-RateLimit-Remaining": String(afterUsage.remaining),
+          "X-RateLimit-Reset": new Date(afterUsage.reset).toISOString(),
         },
       }
     );
   } catch (err) {
     console.error("[/api/analyze]", err);
 
-    // Groq's own per-minute token cap (not our app's rate limit) — surface
-    // this distinctly so the user knows to wait a few seconds rather than
-    // reading a generic failure as "something is broken."
+    // Groq's own per-minute token cap (not the user's quota) — surface it as a
+    // transient condition so the user knows to simply retry shortly.
     const groqRateLimited = isGroqRateLimitError(err);
     if (groqRateLimited) {
-      const retryAfterSeconds = groqRateLimited.retryAfterSeconds ?? 15;
       return NextResponse.json(
         {
-          error: "The AI service is briefly at capacity. Please wait a few seconds and try again.",
+          error: "service_busy",
+          message: "Analysis is temporarily unavailable. Please try again shortly.",
         },
         {
           status: 503,
-          headers: { "Retry-After": String(retryAfterSeconds) },
+          headers: { "Retry-After": String(groqRateLimited.retryAfterSeconds ?? 15) },
         }
       );
     }
 
     return NextResponse.json(
-      { error: "Analysis failed. Please try again." },
+      {
+        error: "analysis_failed",
+        message: "We couldn't complete this analysis. Your decision has not been lost.",
+      },
       { status: 500 }
     );
   }
