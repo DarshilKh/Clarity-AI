@@ -47,10 +47,20 @@ export interface BiasDetected {
 export interface OptionAnalysis {
   optionId: string;
   optionLabel: string;
-  expectedValue: number; // 0–100
+  // 0–100, or null when the user-provided facts don't give enough
+  // differentiating evidence to score this option reliably.
+  expectedValue: number | null;
+  // What the expectedValue is actually based on (e.g. "Weighs stated
+  // compensation and flexibility priority; growth/stability unknown").
+  // null when expectedValue is null — there's nothing to explain.
+  scoreRationale: string | null;
   pros: string[];
   cons: string[];
   secondOrderEffects: string[];
+  // Important factors for this option that matter for the decision but
+  // were not provided by the user (e.g. "Not enough information provided
+  // to evaluate compensation.").
+  unknownFactors: string[];
   regretRisk: "low" | "medium" | "high";
 }
 
@@ -62,21 +72,40 @@ export interface PreMortem {
   mostLikely: string;
 }
 
+// How the recommendation was reached, so the UI can render honestly:
+// - "option": the provided facts give a real basis to prefer one option.
+// - "phased": a staged/hybrid path beats a binary pick, grounded in stated facts.
+// - "insufficient_evidence": the facts don't yet distinguish the options —
+//   this is a legitimate outcome, not a failure to analyze.
+export type RecommendationType = "option" | "phased" | "insufficient_evidence";
+
+export type ConfidenceLevel = "high" | "medium" | "low";
+
 export interface DecisionAnalysis {
   summary: string;
   recommendedOptionId: string | null;
+  recommendationType: RecommendationType;
   recommendationReasoning: string;
   optionAnalyses: OptionAnalysis[];
   preMortems: PreMortem[];
   biasesDetected: BiasDetected[];
   keyQuestions: string[];
+  // Concrete follow-up questions about information the user hasn't
+  // provided yet that would most change this analysis.
+  missingInformation: string[];
   wrapSummary: {
     widen: string;
     reality: string;
     attain: string;
     prepare: string;
   };
-  confidenceScore: number; // 0–100
+  confidenceScore: number; // 0–100, reflects density of grounded evidence
+  confidenceLevel: ConfidenceLevel;
+  // Why confidence is at this level — must name the specific unresolved
+  // unknown with the greatest power to reverse the recommendation, if one
+  // exists. This is what stops "high confidence" from being claimed when a
+  // single missing fact could flip the answer.
+  confidenceReasoning: string;
 }
 
 // ─── Stored Decision ──────────────────────────────────────────────────────────

@@ -19,11 +19,25 @@ export async function POST(req: NextRequest) {
     // ── 2. Rate limiting ─────────────────────────────────────────────────────
     // Authenticated users: limited by user ID (fairer — not by IP which can change)
     // Guest users: limited by IP
+    // If the rate limit backend itself is unreachable, fail open rather than
+    // taking down the core feature — an outage in Redis shouldn't mean nobody
+    // can get an analysis.
     const identifier = getRatelimitIdentifier(req, user?.id ?? null);
-    const { success, remaining, reset } = await analysisRatelimit.limit(identifier);
-
-    if (!success) {
-      return rateLimitResponse(reset, remaining);
+    let remaining = -1;
+    let reset = Date.now();
+    if (process.env.DISABLE_RATE_LIMIT === "true") {
+      console.warn("[/api/analyze] rate limiting disabled via DISABLE_RATE_LIMIT env var");
+    } else {
+      try {
+        const result = await analysisRatelimit.limit(identifier);
+        if (!result.success) {
+          return rateLimitResponse(result.reset, result.remaining);
+        }
+        remaining = result.remaining;
+        reset = result.reset;
+      } catch (rateLimitErr) {
+        console.error("[/api/analyze] rate limiter unavailable, failing open", rateLimitErr);
+      }
     }
 
     // ── 3. Parse and validate body ────────────────────────────────────────────
@@ -74,9 +88,38 @@ export async function POST(req: NextRequest) {
     );
   } catch (err) {
     console.error("[/api/analyze]", err);
+
+    // Groq's own per-minute token cap (not our app's rate limit) — surface
+    // this distinctly so the user knows to wait a few seconds rather than
+    // reading a generic failure as "something is broken."
+    const groqRateLimited = isGroqRateLimitError(err);
+    if (groqRateLimited) {
+      const retryAfterSeconds = groqRateLimited.retryAfterSeconds ?? 15;
+      return NextResponse.json(
+        {
+          error: "The AI service is briefly at capacity. Please wait a few seconds and try again.",
+        },
+        {
+          status: 503,
+          headers: { "Retry-After": String(retryAfterSeconds) },
+        }
+      );
+    }
+
     return NextResponse.json(
       { error: "Analysis failed. Please try again." },
       { status: 500 }
     );
   }
+}
+
+function isGroqRateLimitError(err: unknown): { retryAfterSeconds: number | null } | null {
+  if (typeof err !== "object" || err === null) return null;
+  const e = err as { status?: number; error?: { error?: { code?: string } }; headers?: Headers };
+  const code = e.error?.error?.code;
+  const isRateLimit = code === "rate_limit_exceeded" || e.status === 429 || e.status === 413;
+  if (!isRateLimit) return null;
+  const retryAfterHeader = e.headers?.get?.("retry-after");
+  const retryAfterSeconds = retryAfterHeader ? Number(retryAfterHeader) : null;
+  return { retryAfterSeconds: Number.isFinite(retryAfterSeconds) ? retryAfterSeconds : null };
 }

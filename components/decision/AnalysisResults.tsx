@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import type { DecisionAnalysis, DecisionIntake } from "@/types";
-import { scoreColor, regretBadge, severityBadge, categoryEmoji } from "@/lib/utils";
+import type { DecisionAnalysis, DecisionIntake, RecommendationType, ConfidenceLevel } from "@/types";
+import { scoreColor, regretBadge, severityBadge, categoryEmoji, confidenceLabel } from "@/lib/utils";
 import {
   Brain,
   AlertTriangle,
@@ -13,12 +13,28 @@ import {
   ArrowRight,
   TrendingUp,
   XCircle,
+  SearchX,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
 interface Props {
   analysis: DecisionAnalysis;
   intake: Partial<DecisionIntake>;
+}
+
+// Analyses saved before recommendationType/confidenceLevel/missingInformation/
+// unknownFactors existed won't have them — derive safe fallbacks so old
+// journal entries keep rendering correctly.
+function resolveRecommendationType(analysis: DecisionAnalysis): RecommendationType {
+  if (analysis.recommendationType) return analysis.recommendationType;
+  return analysis.recommendedOptionId ? "option" : "phased";
+}
+
+function resolveConfidenceLevel(analysis: DecisionAnalysis): ConfidenceLevel {
+  if (analysis.confidenceLevel) return analysis.confidenceLevel;
+  if (analysis.confidenceScore >= 70) return "high";
+  if (analysis.confidenceScore >= 40) return "medium";
+  return "low";
 }
 
 function Section({
@@ -70,6 +86,8 @@ function Section({
 export default function AnalysisResults({ analysis, intake }: Props) {
   const recommended = intake.options?.find((o) => o.id === analysis.recommendedOptionId);
   const notRecommended = intake.options?.filter((o) => o.id !== analysis.recommendedOptionId);
+  const recommendationType = resolveRecommendationType(analysis);
+  const confidenceLevel = resolveConfidenceLevel(analysis);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
@@ -170,6 +188,80 @@ export default function AnalysisResults({ analysis, intake }: Props) {
                 </div>
               )}
             </>
+          ) : recommendationType === "insufficient_evidence" ? (
+            /* Facts provided don't yet distinguish the options — say so honestly */
+            <div style={{ marginBottom: "1.25rem" }}>
+              <p style={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.4)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.6rem" }}>
+                Not enough information yet
+              </p>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1.1rem" }}>
+                <div
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: "50%",
+                    background: "rgba(200,134,10,0.25)",
+                    border: "2px solid var(--color-amber)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <SearchX size={16} color="var(--color-amber)" strokeWidth={2} />
+                </div>
+                <h2
+                  style={{
+                    fontFamily: "var(--font-display)",
+                    fontSize: "clamp(1.2rem, 4vw, 1.8rem)",
+                    fontWeight: 800,
+                    color: "white",
+                    letterSpacing: "-0.03em",
+                    lineHeight: 1.15,
+                  }}
+                >
+                  Neither option can be confidently preferred yet
+                </h2>
+              </div>
+
+              {/* What's known / reasoning box */}
+              <div
+                style={{
+                  background: "rgba(200,134,10,0.1)",
+                  border: "1px solid rgba(200,134,10,0.3)",
+                  borderRadius: "var(--radius-md)",
+                  padding: "1rem 1.25rem",
+                  marginBottom: "0.75rem",
+                }}
+              >
+                <p style={{ fontSize: "0.7rem", fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.6rem" }}>
+                  What Clarity can say from what you&apos;ve shared
+                </p>
+                <p style={{ fontSize: "0.95rem", color: "rgba(255,255,255,0.88)", lineHeight: 1.75, fontStyle: "italic" }}>
+                  &ldquo;{analysis.recommendationReasoning}&rdquo;
+                </p>
+              </div>
+
+              {analysis.missingInformation && analysis.missingInformation.length > 0 && (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: "0.625rem",
+                    padding: "0.6rem 1rem",
+                    background: "rgba(255,255,255,0.06)",
+                    border: "1px solid rgba(255,255,255,0.12)",
+                    borderRadius: "var(--radius-md)",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <HelpCircle size={13} color="rgba(255,255,255,0.5)" strokeWidth={2} style={{ flexShrink: 0, marginTop: 2 }} />
+                  <span style={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.6)" }}>
+                    What would change this: {analysis.missingInformation.slice(0, 3).join(" · ")}
+                  </span>
+                </div>
+              )}
+            </div>
           ) : (
             /* No single option wins — phased/hybrid path is better */
             <div style={{ marginBottom: "1.25rem" }}>
@@ -257,9 +349,11 @@ export default function AnalysisResults({ analysis, intake }: Props) {
           </p>
 
           {/* Confidence bar */}
-          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginTop: "1rem" }}>
-            <span style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.3)", whiteSpace: "nowrap" }}>Confidence</span>
-            <div style={{ flex: 1, height: 5, background: "rgba(255,255,255,0.1)", borderRadius: 3 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginTop: "1rem", flexWrap: "wrap" }}>
+            <span style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.3)", whiteSpace: "nowrap" }}>
+              {confidenceLabel(confidenceLevel) || "Confidence"}
+            </span>
+            <div style={{ flex: 1, minWidth: 60, height: 5, background: "rgba(255,255,255,0.1)", borderRadius: 3 }}>
               <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: `${analysis.confidenceScore}%` }}
@@ -271,6 +365,13 @@ export default function AnalysisResults({ analysis, intake }: Props) {
               {analysis.confidenceScore}%
             </span>
           </div>
+
+          {/* Why confidence is at this level — names the reversal risk, if any */}
+          {analysis.confidenceReasoning && (
+            <p style={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.4)", lineHeight: 1.6, marginTop: "0.5rem" }}>
+              {analysis.confidenceReasoning}
+            </p>
+          )}
         </div>
 
         {/* Bottom hint strip */}
@@ -292,6 +393,28 @@ export default function AnalysisResults({ analysis, intake }: Props) {
       </motion.div>
 
       {/* ═══════════════════════════════════════
+          MISSING INFORMATION — what would change this
+      ════════════════════════════════════════ */}
+      {analysis.missingInformation && analysis.missingInformation.length > 0 && (
+        <Section icon={SearchX} title="What Would Change This Analysis" delay={0.08}>
+          <p style={{ fontSize: "0.8rem", color: "var(--color-ink-faint)", marginBottom: "0.85rem", lineHeight: 1.6 }}>
+            This analysis is grounded strictly in what you provided. These are the specific gaps that matter most — answering them would sharpen or change the recommendation.
+          </p>
+          <ul style={{ display: "flex", flexDirection: "column", gap: "0.5rem", listStyle: "none" }}>
+            {analysis.missingInformation.map((q, i) => (
+              <li
+                key={i}
+                style={{ display: "flex", gap: "0.6rem", padding: "0.65rem 0.85rem", borderRadius: "var(--radius-md)", background: "var(--color-surface-alt)" }}
+              >
+                <span style={{ color: "var(--color-ink-faint)", flexShrink: 0 }}>?</span>
+                <span style={{ fontSize: "0.85rem", color: "var(--color-ink-soft)", lineHeight: 1.55 }}>{q}</span>
+              </li>
+            ))}
+          </ul>
+        </Section>
+      )}
+
+      {/* ═══════════════════════════════════════
           EXPECTED VALUE — visual bar comparison
       ════════════════════════════════════════ */}
       <motion.div
@@ -311,9 +434,10 @@ export default function AnalysisResults({ analysis, intake }: Props) {
         <div style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}>
           {analysis.optionAnalyses
             .slice()
-            .sort((a, b) => b.expectedValue - a.expectedValue)
+            .sort((a, b) => (b.expectedValue ?? -1) - (a.expectedValue ?? -1))
             .map((opt) => {
               const isRec = opt.optionId === analysis.recommendedOptionId;
+              const scored = opt.expectedValue !== null;
               return (
                 <div key={opt.optionId}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.35rem" }}>
@@ -330,21 +454,23 @@ export default function AnalysisResults({ analysis, intake }: Props) {
                         <span className="badge badge-amber" style={{ fontSize: "0.65rem" }}>Recommended</span>
                       )}
                     </div>
-                    <span className={scoreColor(opt.expectedValue)} style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: "0.95rem" }}>
-                      {opt.expectedValue}/100
+                    <span className={scoreColor(opt.expectedValue)} style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: scored ? "0.95rem" : "0.72rem" }}>
+                      {scored ? `${opt.expectedValue}/100` : "Insufficient information to score reliably"}
                     </span>
                   </div>
-                  <div style={{ height: 10, borderRadius: 5, background: "var(--color-surface-alt)", overflow: "hidden" }}>
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${opt.expectedValue}%` }}
-                      transition={{ duration: 1.1, delay: 0.3, ease: "easeOut" }}
-                      style={{
-                        height: "100%",
-                        borderRadius: 5,
-                        background: isRec ? "var(--color-amber)" : "var(--color-border-strong)",
-                      }}
-                    />
+                  <div style={{ height: 10, borderRadius: 5, background: "var(--color-surface-alt)", overflow: "hidden", border: scored ? "none" : "1px dashed var(--color-border-strong)" }}>
+                    {scored && (
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${opt.expectedValue}%` }}
+                        transition={{ duration: 1.1, delay: 0.3, ease: "easeOut" }}
+                        style={{
+                          height: "100%",
+                          borderRadius: 5,
+                          background: isRec ? "var(--color-amber)" : "var(--color-border-strong)",
+                        }}
+                      />
+                    )}
                   </div>
                 </div>
               );
@@ -376,11 +502,17 @@ export default function AnalysisResults({ analysis, intake }: Props) {
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                     <span style={{ fontSize: "0.75rem", color: "var(--color-ink-faint)" }}>Expected value</span>
-                    <span className={scoreColor(opt.expectedValue)} style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: "1rem" }}>
-                      {opt.expectedValue}
+                    <span className={scoreColor(opt.expectedValue)} style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: opt.expectedValue === null ? "0.72rem" : "1rem" }}>
+                      {opt.expectedValue === null ? "Insufficient info" : opt.expectedValue}
                     </span>
                   </div>
                 </div>
+
+                {opt.scoreRationale && (
+                  <p style={{ fontSize: "0.75rem", color: "var(--color-ink-faint)", fontStyle: "italic", marginBottom: "0.75rem", marginTop: "-0.4rem" }}>
+                    Based on: {opt.scoreRationale}
+                  </p>
+                )}
 
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginBottom: "0.75rem" }}>
                   <div>
@@ -418,6 +550,19 @@ export default function AnalysisResults({ analysis, intake }: Props) {
                   </div>
                 )}
 
+                {opt.unknownFactors && opt.unknownFactors.length > 0 && (
+                  <div style={{ marginBottom: "0.6rem" }}>
+                    <p style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--color-ink-faint)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.4rem" }}>? Unknown</p>
+                    <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+                      {opt.unknownFactors.map((u, i) => (
+                        <li key={i} style={{ fontSize: "0.82rem", color: "var(--color-ink-faint)", display: "flex", gap: "0.35rem", fontStyle: "italic" }}>
+                          <span style={{ flexShrink: 0 }}>?</span>{u}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
                 <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                   <span style={{ fontSize: "0.72rem", color: "var(--color-ink-faint)" }}>Regret risk:</span>
                   <span className={`badge ${regretBadge(opt.regretRisk)}`}>{opt.regretRisk}</span>
@@ -444,7 +589,7 @@ export default function AnalysisResults({ analysis, intake }: Props) {
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.5rem" }}>
                 {[
                   { label: "Best case",   text: pm.bestCase,    color: "var(--color-sage)",  Icon: TrendingUp  },
-                  { label: "Most likely", text: pm.mostLikely,  color: "var(--color-amber)", Icon: ArrowRight  },
+                  { label: "Plausible outcome", text: pm.mostLikely,  color: "var(--color-amber)", Icon: ArrowRight  },
                   { label: "Worst case",  text: pm.worstCase,   color: "var(--color-rose)",  Icon: AlertTriangle },
                 ].map(({ label, text, color }) => (
                   <div key={label} style={{ padding: "0.75rem", borderRadius: "var(--radius-md)", background: "var(--color-surface-alt)", borderTop: `3px solid ${color}` }}>
@@ -462,7 +607,7 @@ export default function AnalysisResults({ analysis, intake }: Props) {
           BIASES DETECTED
       ══════════════════ */}
       {analysis.biasesDetected.length > 0 && (
-        <Section icon={AlertTriangle} title={`Cognitive Biases Detected (${analysis.biasesDetected.length})`} delay={0.25}>
+        <Section icon={AlertTriangle} title={`Potential Biases to Watch For (${analysis.biasesDetected.length})`} delay={0.25}>
           <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
             {analysis.biasesDetected.map((bias) => (
               <div

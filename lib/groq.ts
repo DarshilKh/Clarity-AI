@@ -7,5 +7,6 @@ export function createGroqClient(): Groq {
   });
 }
 
-// Latest stable Groq model as of 2026
-export const GROQ_MODEL = "llama-3.3-70b-versatile";
+// llama-3.3-70b-versatile was decommissioned by Groq; gpt-oss-120b is the
+// current largest instruction-following model available on this account.
+export const GROQ_MODEL = "openai/gpt-oss-120b";

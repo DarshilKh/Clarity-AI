@@ -41,10 +41,20 @@ export function categoryEmoji(category: string): string {
   return map[category] ?? "🔮";
 }
 
-export function scoreColor(score: number): string {
+export function scoreColor(score: number | null): string {
+  if (score === null) return "text-ink-faint";
   if (score >= 70) return "text-sage";
   if (score >= 40) return "text-amber";
   return "text-rose";
+}
+
+export function confidenceLabel(level: string): string {
+  switch (level) {
+    case "high":   return "High confidence";
+    case "medium": return "Medium confidence";
+    case "low":    return "Low confidence";
+    default:       return "";
+  }
 }
 
 export function regretBadge(risk: string): string {
