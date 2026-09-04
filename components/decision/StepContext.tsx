@@ -1,95 +1,170 @@
 "use client";
 
 import { useWizardStore } from "@/store";
+import { CATEGORIES, categoryIcon } from "@/lib/categories";
+import type { DecisionStake } from "@/types";
 
-const PROMPTS = [
-  "What's the worst thing that could happen if you choose wrong?",
-  "What would you regret more — acting or not acting?",
-  "Who else is affected by this decision?",
-  "What would you tell a friend in this situation?",
-  "What are you afraid to admit about this decision?",
+const STAKES: { value: DecisionStake; label: string; desc: string }[] = [
+  { value: "low", label: "Low", desc: "Minor, easily reversible" },
+  { value: "medium", label: "Medium", desc: "Moderate, somewhat reversible" },
+  { value: "high", label: "High", desc: "Major impact, hard to reverse" },
+  { value: "critical", label: "Critical", desc: "Life-changing, permanent" },
 ];
+
+const DEADLINES = [
+  { label: "Today", days: 1 },
+  { label: "3 days", days: 3 },
+  { label: "1 week", days: 7 },
+  { label: "2 weeks", days: 14 },
+  { label: "1 month", days: 30 },
+  { label: "3 months", days: 90 },
+  { label: "6 months", days: 180 },
+];
+
+function timelineLabel(days: number): string {
+  if (days === 1) return "1 day";
+  if (days < 7) return `${days} days`;
+  if (days === 7) return "1 week";
+  if (days < 30) return `${Math.round(days / 7)} weeks`;
+  if (days === 30) return "1 month";
+  if (days < 365) return `${Math.round(days / 30)} months`;
+  if (days === 365) return "1 year";
+  return `${Math.round((days / 365) * 10) / 10} years`;
+}
 
 export default function StepContext() {
   const { intake, updateIntake } = useWizardStore();
-
-  function appendPrompt(prompt: string) {
-    const current = intake.context ?? "";
-    const separator = current.trim() ? "\n\n" : "";
-    updateIntake({ context: current + separator + prompt + " " });
-  }
+  const timelineDays = intake.timelineDays ?? 30;
+  const context = intake.context ?? "";
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-      <div
-        style={{
-          background: "var(--color-amber-pale)",
-          border: "1px solid var(--color-amber-border)",
-          borderRadius: "var(--radius-md)",
-          padding: "1rem 1.25rem",
-        }}
-      >
-        <p style={{ fontSize: "0.875rem", color: "var(--color-ink-soft)", lineHeight: 1.65 }}>
-          <strong style={{ color: "var(--color-amber)" }}>This is where the magic happens.</strong>{" "}
-          Share your fears, gut feelings, constraints, and anything that keeps you up at night about this decision.
-          The more honest you are here, the better Clarity can detect biases and blind spots.
-        </p>
-      </div>
+    <div style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
+      {/* Category */}
+      <fieldset style={{ border: 0 }}>
+        <legend className="field-label" style={{ marginBottom: "0.6rem" }}>
+          Category
+        </legend>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
+            gap: "0.5rem",
+          }}
+        >
+          {CATEGORIES.map((cat) => {
+            const Icon = categoryIcon(cat.value);
+            const active = intake.category === cat.value;
+            return (
+              <button
+                key={cat.value}
+                type="button"
+                className="tile"
+                aria-pressed={active}
+                onClick={() => updateIntake({ category: cat.value })}
+              >
+                <Icon size={15} strokeWidth={1.75} style={{ flexShrink: 0 }} />
+                {cat.label}
+              </button>
+            );
+          })}
+        </div>
+      </fieldset>
 
-      {/* Quick prompts */}
-      <div>
-        <p style={{ fontSize: "0.8rem", fontWeight: 600, color: "var(--color-ink-muted)", marginBottom: "0.6rem" }}>
-          Tap a prompt to add it:
-        </p>
+      {/* Stakes */}
+      <fieldset style={{ border: 0 }}>
+        <legend className="field-label" style={{ marginBottom: "0.6rem" }}>
+          How high are the stakes?
+        </legend>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
+            gap: "0.5rem",
+          }}
+        >
+          {STAKES.map((s) => {
+            const active = intake.stake === s.value;
+            return (
+              <button
+                key={s.value}
+                type="button"
+                className="tile"
+                aria-pressed={active}
+                onClick={() => updateIntake({ stake: s.value })}
+                style={{ flexDirection: "column", alignItems: "flex-start", gap: "0.15rem" }}
+              >
+                <span style={{ fontWeight: 600, fontSize: "0.875rem" }}>{s.label}</span>
+                <span style={{ fontSize: "0.75rem", color: "var(--color-ink-faint)", fontWeight: 400 }}>
+                  {s.desc}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </fieldset>
+
+      {/* Deadline */}
+      <fieldset style={{ border: 0 }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "baseline",
+            marginBottom: "0.6rem",
+            gap: "1rem",
+          }}
+        >
+          <legend className="field-label" style={{ marginBottom: 0 }}>
+            How long until you must decide?
+          </legend>
+          <span
+            style={{
+              fontFamily: "var(--font-mono)",
+              fontSize: "0.82rem",
+              fontWeight: 600,
+              color: "var(--color-ink)",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {timelineLabel(timelineDays)}
+          </span>
+        </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
-          {PROMPTS.map((p) => (
+          {DEADLINES.map(({ label, days }) => (
             <button
-              key={p}
-              onClick={() => appendPrompt(p)}
-              style={{
-                padding: "0.35rem 0.75rem",
-                borderRadius: "var(--radius-full)",
-                border: "1px solid var(--color-border)",
-                background: "var(--color-surface-raised)",
-                fontSize: "0.78rem",
-                color: "var(--color-ink-muted)",
-                cursor: "pointer",
-                transition: "all 0.15s ease",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = "var(--color-amber)";
-                e.currentTarget.style.color = "var(--color-amber)";
-                e.currentTarget.style.background = "var(--color-amber-pale)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = "var(--color-border)";
-                e.currentTarget.style.color = "var(--color-ink-muted)";
-                e.currentTarget.style.background = "var(--color-surface-raised)";
-              }}
+              key={label}
+              type="button"
+              className="chip"
+              aria-pressed={timelineDays === days}
+              onClick={() => updateIntake({ timelineDays: days })}
             >
-              {p}
+              {label}
             </button>
           ))}
         </div>
-      </div>
+      </fieldset>
 
-      {/* Context textarea */}
+      {/* Thoughts / constraints */}
       <div>
-        <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 600, marginBottom: "0.5rem", color: "var(--color-ink)" }}>
-          Your thoughts, fears, and constraints
+        <label htmlFor="decision-context" className="field-label">
+          Thoughts, fears, and constraints <span className="optional">— optional</span>
         </label>
+        <p className="field-hint measure" style={{ marginTop: 0, marginBottom: "0.5rem" }}>
+          What matters to you, what you&apos;re worried about, and anything constraining the choice.
+          Clarity uses this to weigh trade-offs and to flag reasoning worth a second look — it never
+          treats it as fact about your options.
+        </p>
         <textarea
+          id="decision-context"
           className="input-field"
-          placeholder="Write freely. What's really going on? What are you afraid of? What do you know that you haven't said yet?"
-          rows={8}
-          value={intake.context ?? ""}
+          placeholder="What's really going on? What would you regret? What can't change?"
+          rows={7}
+          value={context}
           onChange={(e) => updateIntake({ context: e.target.value })}
           maxLength={2000}
-          style={{ fontFamily: "var(--font-body)", resize: "vertical" }}
+          style={{ resize: "vertical", lineHeight: 1.65 }}
         />
-        <p style={{ fontSize: "0.75rem", color: "var(--color-ink-faint)", marginTop: "0.35rem" }}>
-          {(intake.context ?? "").length}/2000 characters
-        </p>
+        <p className="field-hint">{context.length}/2000</p>
       </div>
     </div>
   );
