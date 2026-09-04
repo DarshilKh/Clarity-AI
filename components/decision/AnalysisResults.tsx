@@ -1,20 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import type { DecisionAnalysis, DecisionIntake, RecommendationType, ConfidenceLevel } from "@/types";
-import { scoreColor, regretBadge, severityBadge, categoryEmoji, confidenceLabel } from "@/lib/utils";
-import {
-  Brain,
-  AlertTriangle,
-  Target,
-  HelpCircle,
-  Layers,
-  CheckCircle2,
-  ArrowRight,
-  TrendingUp,
-  XCircle,
-  SearchX,
-} from "lucide-react";
+import type {
+  DecisionAnalysis,
+  DecisionIntake,
+  OptionAnalysis,
+  RecommendationType,
+  ConfidenceLevel,
+} from "@/types";
+import { scoreColor, regretBadge, severityBadge } from "@/lib/utils";
+import { ArrowRight, Check, ChevronDown, HelpCircle, Minus, SearchX } from "lucide-react";
 import { motion } from "framer-motion";
 
 interface Props {
@@ -22,9 +17,11 @@ interface Props {
   intake: Partial<DecisionIntake>;
 }
 
-// Analyses saved before recommendationType/confidenceLevel/missingInformation/
-// unknownFactors existed won't have them — derive safe fallbacks so old
-// journal entries keep rendering correctly.
+/* ── Backward compatibility ────────────────────────────────────────────────
+   Analyses saved before recommendationType / confidenceLevel / confidenceReasoning
+   / missingInformation / unknownFactors / scoreRationale existed won't carry them.
+   Everything below degrades gracefully rather than rendering blanks.        */
+
 function resolveRecommendationType(analysis: DecisionAnalysis): RecommendationType {
   if (analysis.recommendationType) return analysis.recommendationType;
   return analysis.recommendedOptionId ? "option" : "phased";
@@ -37,705 +34,761 @@ function resolveConfidenceLevel(analysis: DecisionAnalysis): ConfidenceLevel {
   return "low";
 }
 
+const CONFIDENCE_WORD: Record<ConfidenceLevel, string> = {
+  high: "High",
+  medium: "Medium",
+  low: "Low",
+};
+
 function Section({
-  icon: Icon,
+  eyebrow,
   title,
   children,
   delay = 0,
 }: {
-  icon: React.ElementType;
+  eyebrow?: string;
   title: string;
   children: React.ReactNode;
   delay?: number;
 }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 16 }}
+    <motion.section
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay }}
-      style={{
-        background: "var(--color-surface-raised)",
-        border: "1px solid var(--color-border)",
-        borderRadius: "var(--radius-lg)",
-        padding: "1.5rem",
-      }}
+      transition={{ duration: 0.35, delay }}
+      style={{ borderTop: "1px solid var(--color-border)", paddingTop: "1.75rem" }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: "0.625rem", marginBottom: "1.1rem" }}>
-        <div
-          style={{
-            width: 32,
-            height: 32,
-            borderRadius: "var(--radius-sm)",
-            background: "var(--color-surface-alt)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <Icon size={16} color="var(--color-ink-muted)" strokeWidth={2} />
-        </div>
-        <h3 style={{ fontFamily: "var(--font-display)", fontSize: "1.05rem", fontWeight: 700, color: "var(--color-ink)" }}>
-          {title}
-        </h3>
-      </div>
+      <header style={{ marginBottom: "1.1rem" }}>
+        {eyebrow && (
+          <span className="eyebrow" style={{ marginBottom: "0.35rem" }}>
+            {eyebrow}
+          </span>
+        )}
+        <h2 className="section-title">{title}</h2>
+      </header>
       {children}
-    </motion.div>
+    </motion.section>
   );
 }
 
-export default function AnalysisResults({ analysis, intake }: Props) {
-  const recommended = intake.options?.find((o) => o.id === analysis.recommendedOptionId);
-  const notRecommended = intake.options?.filter((o) => o.id !== analysis.recommendedOptionId);
+/* ── Verdict ───────────────────────────────────────────────────────────── */
+
+function Verdict({ analysis, intake }: Props) {
   const recommendationType = resolveRecommendationType(analysis);
   const confidenceLevel = resolveConfidenceLevel(analysis);
+  const recommended = intake.options?.find((o) => o.id === analysis.recommendedOptionId);
+  const notRecommended = intake.options?.filter((o) => o.id !== analysis.recommendedOptionId) ?? [];
+
+  const headline = recommended
+    ? recommended.label
+    : recommendationType === "insufficient_evidence"
+    ? "Not enough information yet"
+    : "A phased approach fits better";
+
+  const kicker = recommended
+    ? "Recommended"
+    : recommendationType === "insufficient_evidence"
+    ? "No clear preference"
+    : "Recommended path";
+
+  const whyLabel =
+    recommendationType === "insufficient_evidence"
+      ? "What Clarity can say from what you've shared"
+      : "Why Clarity recommends this";
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-
-      {/* ═══════════════════════════════════════════════════
-          VERDICT CARD — the hero, the whole point of Clarity
-          Shows FIRST, big and unmissable
-      ════════════════════════════════════════════════════ */}
-      <motion.div
-        initial={{ opacity: 0, y: 24 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        style={{ borderRadius: "var(--radius-xl)", overflow: "hidden", border: "1px solid var(--color-border)" }}
+    <motion.section
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
+      style={{
+        background: "var(--color-ink)",
+        borderRadius: "var(--radius-xl)",
+        padding: "clamp(1.5rem, 5vw, 2.25rem)",
+        color: "#fff",
+      }}
+    >
+      <span
+        className="eyebrow"
+        style={{ color: "rgba(255,255,255,0.45)", marginBottom: "1rem" }}
       >
-        {/* Amber label strip at top */}
-        <div
+        Clarity&apos;s verdict
+      </span>
+
+      <p
+        style={{
+          fontSize: "0.78rem",
+          fontWeight: 600,
+          color: "rgba(255,255,255,0.5)",
+          marginBottom: "0.5rem",
+        }}
+      >
+        {kicker}
+      </p>
+
+      <h1
+        style={{
+          fontFamily: "var(--font-display)",
+          fontSize: "clamp(1.6rem, 4.5vw, 2.4rem)",
+          fontWeight: 600,
+          letterSpacing: "-0.03em",
+          lineHeight: 1.12,
+          color: "#fff",
+          marginBottom: "1.25rem",
+        }}
+      >
+        {headline}
+      </h1>
+
+      {/* Confidence */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "0.75rem",
+          paddingBottom: "1.25rem",
+          marginBottom: "1.25rem",
+          borderBottom: "1px solid rgba(255,255,255,0.12)",
+          flexWrap: "wrap",
+        }}
+      >
+        <span style={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.5)" }}>Confidence</span>
+        <span
           style={{
-            background: "var(--color-amber)",
-            padding: "0.5rem 1.5rem",
-            display: "flex",
-            alignItems: "center",
-            gap: "0.5rem",
+            fontFamily: "var(--font-mono)",
+            fontSize: "0.95rem",
+            fontWeight: 600,
+            color: "#fff",
           }}
         >
-          <Brain size={14} color="white" strokeWidth={2.5} />
-          <span style={{ fontSize: "0.72rem", fontWeight: 700, color: "white", textTransform: "uppercase", letterSpacing: "0.1em" }}>
-            Clarity&apos;s Verdict
-          </span>
+          {analysis.confidenceScore}%
+        </span>
+        <span style={{ color: "rgba(255,255,255,0.25)" }}>·</span>
+        <span style={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.72)", fontWeight: 500 }}>
+          {CONFIDENCE_WORD[confidenceLevel]}
+        </span>
+        <div
+          aria-hidden
+          style={{
+            flex: 1,
+            minWidth: 60,
+            height: 2,
+            background: "rgba(255,255,255,0.14)",
+            borderRadius: 1,
+          }}
+        >
+          <motion.div
+            initial={{ width: 0 }}
+            animate={{ width: `${analysis.confidenceScore}%` }}
+            transition={{ duration: 0.9, delay: 0.3, ease: "easeOut" }}
+            style={{ height: "100%", background: "var(--color-amber)", borderRadius: 1 }}
+          />
         </div>
+      </div>
 
-        {/* Dark body with the actual answer */}
-        <div style={{ background: "var(--color-ink)", padding: "1.75rem 1.75rem 1.5rem" }}>
-          {recommended ? (
-            <>
-              {/* THE answer — unmissable */}
-              <div style={{ marginBottom: "1.25rem" }}>
-                <p style={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.4)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.6rem" }}>
-                  You should
-                </p>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.875rem", flexWrap: "wrap" }}>
-                  <CheckCircle2 size={30} color="var(--color-amber)" strokeWidth={2} style={{ flexShrink: 0 }} />
-                  <h2
-                    style={{
-                      fontFamily: "var(--font-display)",
-                      fontSize: "clamp(1.5rem, 5vw, 2.2rem)",
-                      fontWeight: 800,
-                      color: "white",
-                      letterSpacing: "-0.03em",
-                      lineHeight: 1.1,
-                    }}
+      {/* Why */}
+      <div style={{ marginBottom: analysis.confidenceReasoning ? "1.25rem" : 0 }}>
+        <p
+          style={{
+            fontSize: "0.72rem",
+            fontWeight: 600,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            color: "rgba(255,255,255,0.4)",
+            marginBottom: "0.5rem",
+          }}
+        >
+          {whyLabel}
+        </p>
+        <p
+          className="measure"
+          style={{ fontSize: "1rem", lineHeight: 1.7, color: "rgba(255,255,255,0.9)" }}
+        >
+          {analysis.recommendationReasoning}
+        </p>
+      </div>
+
+      {/* What would change this */}
+      {analysis.confidenceReasoning && (
+        <div>
+          <p
+            style={{
+              fontSize: "0.72rem",
+              fontWeight: 600,
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+              color: "rgba(255,255,255,0.4)",
+              marginBottom: "0.5rem",
+            }}
+          >
+            What would change this
+          </p>
+          <p
+            className="measure"
+            style={{ fontSize: "0.92rem", lineHeight: 1.7, color: "rgba(255,255,255,0.62)" }}
+          >
+            {analysis.confidenceReasoning}
+          </p>
+        </div>
+      )}
+
+      {/* Not recommended */}
+      {recommended && notRecommended.length > 0 && (
+        <p
+          style={{
+            marginTop: "1.25rem",
+            paddingTop: "1rem",
+            borderTop: "1px solid rgba(255,255,255,0.12)",
+            fontSize: "0.82rem",
+            color: "rgba(255,255,255,0.45)",
+          }}
+        >
+          Not recommended: {notRecommended.map((o) => o.label).join(" · ")}
+        </p>
+      )}
+
+      {/* Summary */}
+      <p
+        className="measure"
+        style={{
+          marginTop: "1.25rem",
+          paddingTop: "1rem",
+          borderTop: "1px solid rgba(255,255,255,0.12)",
+          fontSize: "0.88rem",
+          lineHeight: 1.7,
+          color: "rgba(255,255,255,0.55)",
+        }}
+      >
+        {analysis.summary}
+      </p>
+    </motion.section>
+  );
+}
+
+/* ── Option comparison ─────────────────────────────────────────────────── */
+
+function OptionComparison({ analysis }: { analysis: DecisionAnalysis }) {
+  const options = analysis.optionAnalyses;
+  if (options.length === 0) return null;
+
+  return (
+    <Section eyebrow="Side by side" title="Option comparison" delay={0.05}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns:
+            options.length <= 2
+              ? "repeat(auto-fit, minmax(min(100%, 260px), 1fr))"
+              : "repeat(auto-fit, minmax(min(100%, 220px), 1fr))",
+          gap: "0.75rem",
+        }}
+      >
+        {options.map((opt) => {
+          const isRec = opt.optionId === analysis.recommendedOptionId;
+          const scored = opt.expectedValue !== null;
+          return (
+            <div
+              key={opt.optionId}
+              style={{
+                border: isRec ? "1px solid var(--color-ink)" : "1px solid var(--color-border)",
+                borderRadius: "var(--radius-lg)",
+                background: "var(--color-surface-raised)",
+                padding: "1.1rem",
+                display: "flex",
+                flexDirection: "column",
+                gap: "0.6rem",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", minHeight: 20 }}>
+                {isRec && (
+                  <span
+                    className="badge badge-ink"
+                    style={{ fontSize: "0.6rem", padding: "0.15rem 0.5rem" }}
                   >
-                    {recommended.label}
-                  </h2>
-                  <span style={{ fontSize: "1.6rem", flexShrink: 0 }}>
-                    {categoryEmoji(intake.category ?? "other")}
+                    Recommended
                   </span>
-                </div>
+                )}
               </div>
 
-              {/* Why — the reasoning */}
-              <div
+              <p
                 style={{
-                  background: "rgba(255,255,255,0.07)",
-                  border: "1px solid rgba(255,255,255,0.12)",
-                  borderRadius: "var(--radius-md)",
-                  padding: "1rem 1.25rem",
-                  marginBottom: "1rem",
+                  fontFamily: "var(--font-display)",
+                  fontSize: "1.05rem",
+                  fontWeight: 600,
+                  letterSpacing: "-0.02em",
+                  color: "var(--color-ink)",
+                  lineHeight: 1.25,
                 }}
               >
-                <p style={{ fontSize: "0.7rem", fontWeight: 700, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.5rem" }}>
-                  Why Clarity recommends this
-                </p>
-                <p style={{ fontSize: "0.975rem", color: "rgba(255,255,255,0.88)", lineHeight: 1.72, fontStyle: "italic" }}>
-                  &ldquo;{analysis.recommendationReasoning}&rdquo;
-                </p>
+                {opt.optionLabel}
+              </p>
+
+              <div style={{ display: "flex", alignItems: "baseline", gap: "0.4rem" }}>
+                {scored ? (
+                  <>
+                    <span
+                      className={scoreColor(opt.expectedValue)}
+                      style={{
+                        fontFamily: "var(--font-mono)",
+                        fontSize: "1.5rem",
+                        fontWeight: 600,
+                        lineHeight: 1,
+                      }}
+                    >
+                      {opt.expectedValue}
+                    </span>
+                    <span className="meta">/ 100 expected value</span>
+                  </>
+                ) : (
+                  <span className="meta" style={{ fontStyle: "italic" }}>
+                    Insufficient information to score reliably
+                  </span>
+                )}
               </div>
 
-              {/* Not recommended strip */}
-              {notRecommended && notRecommended.length > 0 && (
+              {scored && (
                 <div
+                  aria-hidden
                   style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.625rem",
-                    padding: "0.65rem 1rem",
-                    background: "rgba(184,58,64,0.14)",
-                    border: "1px solid rgba(184,58,64,0.28)",
-                    borderRadius: "var(--radius-md)",
-                    marginBottom: "1.25rem",
-                    flexWrap: "wrap",
+                    height: 3,
+                    background: "var(--color-surface-alt)",
+                    borderRadius: 2,
+                    overflow: "hidden",
                   }}
                 >
-                  <XCircle size={14} color="var(--color-rose)" strokeWidth={2} style={{ flexShrink: 0 }} />
-                  <span style={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.45)" }}>Not recommended:</span>
-                  <span style={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.7)", fontWeight: 600 }}>
-                    {notRecommended.map((o) => o.label).join(" · ")}
-                  </span>
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${opt.expectedValue}%` }}
+                    transition={{ duration: 0.8, delay: 0.25, ease: "easeOut" }}
+                    style={{
+                      height: "100%",
+                      background: isRec ? "var(--color-ink)" : "var(--color-border-strong)",
+                    }}
+                  />
                 </div>
               )}
-            </>
-          ) : recommendationType === "insufficient_evidence" ? (
-            /* Facts provided don't yet distinguish the options — say so honestly */
-            <div style={{ marginBottom: "1.25rem" }}>
-              <p style={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.4)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.6rem" }}>
-                Not enough information yet
-              </p>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1.1rem" }}>
-                <div
-                  style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: "50%",
-                    background: "rgba(200,134,10,0.25)",
-                    border: "2px solid var(--color-amber)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    flexShrink: 0,
-                  }}
-                >
-                  <SearchX size={16} color="var(--color-amber)" strokeWidth={2} />
-                </div>
-                <h2
-                  style={{
-                    fontFamily: "var(--font-display)",
-                    fontSize: "clamp(1.2rem, 4vw, 1.8rem)",
-                    fontWeight: 800,
-                    color: "white",
-                    letterSpacing: "-0.03em",
-                    lineHeight: 1.15,
-                  }}
-                >
-                  Neither option can be confidently preferred yet
-                </h2>
-              </div>
 
-              {/* What's known / reasoning box */}
-              <div
-                style={{
-                  background: "rgba(200,134,10,0.1)",
-                  border: "1px solid rgba(200,134,10,0.3)",
-                  borderRadius: "var(--radius-md)",
-                  padding: "1rem 1.25rem",
-                  marginBottom: "0.75rem",
-                }}
-              >
-                <p style={{ fontSize: "0.7rem", fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.6rem" }}>
-                  What Clarity can say from what you&apos;ve shared
+              {opt.scoreRationale && (
+                <p style={{ fontSize: "0.8rem", color: "var(--color-ink-muted)", lineHeight: 1.55 }}>
+                  {opt.scoreRationale}
                 </p>
-                <p style={{ fontSize: "0.95rem", color: "rgba(255,255,255,0.88)", lineHeight: 1.75, fontStyle: "italic" }}>
-                  &ldquo;{analysis.recommendationReasoning}&rdquo;
-                </p>
-              </div>
-
-              {analysis.missingInformation && analysis.missingInformation.length > 0 && (
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "flex-start",
-                    gap: "0.625rem",
-                    padding: "0.6rem 1rem",
-                    background: "rgba(255,255,255,0.06)",
-                    border: "1px solid rgba(255,255,255,0.12)",
-                    borderRadius: "var(--radius-md)",
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <HelpCircle size={13} color="rgba(255,255,255,0.5)" strokeWidth={2} style={{ flexShrink: 0, marginTop: 2 }} />
-                  <span style={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.6)" }}>
-                    What would change this: {analysis.missingInformation.slice(0, 3).join(" · ")}
-                  </span>
-                </div>
               )}
-            </div>
-          ) : (
-            /* No single option wins — phased/hybrid path is better */
-            <div style={{ marginBottom: "1.25rem" }}>
-              <p style={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.4)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.6rem" }}>
-                Neither option alone is correct
-              </p>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1.1rem" }}>
-                <div
-                  style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: "50%",
-                    background: "rgba(200,134,10,0.25)",
-                    border: "2px solid var(--color-amber)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    flexShrink: 0,
-                  }}
-                >
-                  <span style={{ fontSize: "1rem" }}>⚡</span>
-                </div>
-                <h2
-                  style={{
-                    fontFamily: "var(--font-display)",
-                    fontSize: "clamp(1.2rem, 4vw, 1.8rem)",
-                    fontWeight: 800,
-                    color: "white",
-                    letterSpacing: "-0.03em",
-                    lineHeight: 1.15,
-                  }}
-                >
-                  A phased approach beats both options
-                </h2>
-              </div>
 
-              {/* Phased plan box */}
               <div
                 style={{
-                  background: "rgba(200,134,10,0.1)",
-                  border: "1px solid rgba(200,134,10,0.3)",
-                  borderRadius: "var(--radius-md)",
-                  padding: "1rem 1.25rem",
-                  marginBottom: "0.75rem",
-                }}
-              >
-                <p style={{ fontSize: "0.7rem", fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.6rem" }}>
-                  Clarity&apos;s recommended path
-                </p>
-                <p style={{ fontSize: "0.95rem", color: "rgba(255,255,255,0.88)", lineHeight: 1.75, fontStyle: "italic" }}>
-                  &ldquo;{analysis.recommendationReasoning}&rdquo;
-                </p>
-              </div>
-
-              {/* All options are partial */}
-              <div
-                style={{
+                  marginTop: "auto",
+                  paddingTop: "0.5rem",
                   display: "flex",
                   alignItems: "center",
-                  gap: "0.625rem",
-                  padding: "0.6rem 1rem",
-                  background: "rgba(184,58,64,0.12)",
-                  border: "1px solid rgba(184,58,64,0.25)",
-                  borderRadius: "var(--radius-md)",
-                  flexWrap: "wrap",
+                  gap: "0.4rem",
                 }}
               >
-                <XCircle size={13} color="var(--color-rose)" strokeWidth={2} style={{ flexShrink: 0 }} />
-                <span style={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.45)" }}>
-                  Binary choice between:
-                </span>
-                <span style={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.65)", fontWeight: 600 }}>
-                  {intake.options?.map((o) => o.label).join(" vs ")}
-                </span>
-                <span style={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.4)" }}>
-                  — is a false dilemma
-                </span>
+                <span className="meta">Regret risk</span>
+                <span className={`badge ${regretBadge(opt.regretRisk)}`}>{opt.regretRisk}</span>
               </div>
             </div>
-          )}
+          );
+        })}
+      </div>
+    </Section>
+  );
+}
 
-          {/* Summary */}
-          <p style={{ fontSize: "0.875rem", color: "rgba(255,255,255,0.5)", lineHeight: 1.7, borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: "1.1rem" }}>
-            {analysis.summary}
-          </p>
+/* ── Option detail (collapsible) ───────────────────────────────────────── */
 
-          {/* Confidence bar */}
-          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginTop: "1rem", flexWrap: "wrap" }}>
-            <span style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.3)", whiteSpace: "nowrap" }}>
-              {confidenceLabel(confidenceLevel) || "Confidence"}
-            </span>
-            <div style={{ flex: 1, minWidth: 60, height: 5, background: "rgba(255,255,255,0.1)", borderRadius: 3 }}>
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${analysis.confidenceScore}%` }}
-                transition={{ duration: 1.2, delay: 0.5, ease: "easeOut" }}
-                style={{ height: "100%", background: "var(--color-amber)", borderRadius: 3 }}
-              />
+function OptionDetail({
+  opt,
+  isRecommended,
+  defaultOpen,
+}: {
+  opt: OptionAnalysis;
+  isRecommended: boolean;
+  defaultOpen: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  const unknowns = opt.unknownFactors ?? [];
+
+  return (
+    <div
+      style={{
+        border: "1px solid var(--color-border)",
+        borderRadius: "var(--radius-lg)",
+        background: "var(--color-surface-raised)",
+        overflow: "hidden",
+      }}
+    >
+      <button
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        style={{
+          width: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "0.75rem",
+          padding: "1rem 1.15rem",
+          background: "transparent",
+          border: "none",
+          cursor: "pointer",
+          textAlign: "left",
+        }}
+      >
+        <span style={{ minWidth: 0 }}>
+          <span
+            style={{
+              display: "block",
+              fontWeight: 600,
+              fontSize: "0.95rem",
+              color: "var(--color-ink)",
+              marginBottom: "0.15rem",
+            }}
+          >
+            {opt.optionLabel}
+            {isRecommended && (
+              <span className="meta" style={{ marginLeft: "0.5rem", fontWeight: 500 }}>
+                Recommended
+              </span>
+            )}
+          </span>
+          <span className="meta">
+            {opt.pros.length} pros · {opt.cons.length} cons
+            {unknowns.length > 0 && ` · ${unknowns.length} unknown`}
+          </span>
+        </span>
+        <ChevronDown
+          size={16}
+          color="var(--color-ink-faint)"
+          style={{ flexShrink: 0, transform: open ? "rotate(180deg)" : "none", transition: "transform 0.2s ease" }}
+        />
+      </button>
+
+      {open && (
+        <div style={{ padding: "0 1.15rem 1.15rem", display: "flex", flexDirection: "column", gap: "1.1rem" }}>
+          <div className="analysis-cols" style={{ display: "grid", gap: "1.1rem" }}>
+            <div>
+              <p className="eyebrow" style={{ color: "var(--color-sage)", marginBottom: "0.5rem" }}>
+                Pros
+              </p>
+              <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+                {opt.pros.map((p, i) => (
+                  <li key={i} style={{ display: "flex", gap: "0.5rem", fontSize: "0.85rem", color: "var(--color-ink-soft)", lineHeight: 1.55 }}>
+                    <Check size={13} color="var(--color-sage)" style={{ flexShrink: 0, marginTop: 3 }} />
+                    {p}
+                  </li>
+                ))}
+              </ul>
             </div>
-            <span style={{ fontSize: "0.82rem", color: "var(--color-amber)", fontFamily: "var(--font-mono)", fontWeight: 700, minWidth: 36, textAlign: "right" }}>
-              {analysis.confidenceScore}%
-            </span>
+            <div>
+              <p className="eyebrow" style={{ color: "var(--color-rose)", marginBottom: "0.5rem" }}>
+                Cons
+              </p>
+              <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+                {opt.cons.map((c, i) => (
+                  <li key={i} style={{ display: "flex", gap: "0.5rem", fontSize: "0.85rem", color: "var(--color-ink-soft)", lineHeight: 1.55 }}>
+                    <Minus size={13} color="var(--color-rose)" style={{ flexShrink: 0, marginTop: 3 }} />
+                    {c}
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
 
-          {/* Why confidence is at this level — names the reversal risk, if any */}
-          {analysis.confidenceReasoning && (
-            <p style={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.4)", lineHeight: 1.6, marginTop: "0.5rem" }}>
-              {analysis.confidenceReasoning}
-            </p>
+          {opt.secondOrderEffects.length > 0 && (
+            <div>
+              <p className="eyebrow" style={{ color: "var(--color-sky)", marginBottom: "0.5rem" }}>
+                Second-order effects
+              </p>
+              <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+                {opt.secondOrderEffects.map((e, i) => (
+                  <li key={i} style={{ display: "flex", gap: "0.5rem", fontSize: "0.85rem", color: "var(--color-ink-soft)", lineHeight: 1.55 }}>
+                    <ArrowRight size={13} color="var(--color-sky)" style={{ flexShrink: 0, marginTop: 3 }} />
+                    {e}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Unknowns — deliberately styled apart from facts */}
+          {unknowns.length > 0 && (
+            <div
+              style={{
+                border: "1px dashed var(--color-border-strong)",
+                borderRadius: "var(--radius-md)",
+                padding: "0.85rem 1rem",
+                background: "var(--color-surface-alt)",
+              }}
+            >
+              <p className="eyebrow" style={{ marginBottom: "0.5rem" }}>
+                Not known from what you provided
+              </p>
+              <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+                {unknowns.map((u, i) => (
+                  <li key={i} style={{ display: "flex", gap: "0.5rem", fontSize: "0.82rem", color: "var(--color-ink-muted)", lineHeight: 1.55 }}>
+                    <HelpCircle size={13} color="var(--color-ink-faint)" style={{ flexShrink: 0, marginTop: 3 }} />
+                    {u}
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
         </div>
+      )}
+    </div>
+  );
+}
 
-        {/* Bottom hint strip */}
-        <div
-          style={{
-            background: "var(--color-amber-pale)",
-            borderTop: "1px solid var(--color-amber-border)",
-            padding: "0.8rem 1.5rem",
-            display: "flex",
-            alignItems: "center",
-            gap: "0.5rem",
-          }}
-        >
-          <ArrowRight size={13} color="var(--color-amber)" strokeWidth={2.5} style={{ flexShrink: 0 }} />
-          <p style={{ fontSize: "0.8rem", color: "var(--color-amber)", fontWeight: 500 }}>
-            Scroll down to review the full analysis, pre-mortem scenarios, and questions to ask yourself before deciding.
-          </p>
-        </div>
-      </motion.div>
+/* ── Page ──────────────────────────────────────────────────────────────── */
 
-      {/* ═══════════════════════════════════════
-          MISSING INFORMATION — what would change this
-      ════════════════════════════════════════ */}
-      {analysis.missingInformation && analysis.missingInformation.length > 0 && (
-        <Section icon={SearchX} title="What Would Change This Analysis" delay={0.08}>
-          <p style={{ fontSize: "0.8rem", color: "var(--color-ink-faint)", marginBottom: "0.85rem", lineHeight: 1.6 }}>
-            This analysis is grounded strictly in what you provided. These are the specific gaps that matter most — answering them would sharpen or change the recommendation.
+export default function AnalysisResults({ analysis, intake }: Props) {
+  const missingInformation = analysis.missingInformation ?? [];
+  const wrap = analysis.wrapSummary ?? { widen: "", reality: "", attain: "", prepare: "" };
+  // Only render WRAP entries that actually have content — a heading with an
+  // empty body must never appear.
+  const wrapItems = [
+    { key: "widen", label: "Widen", letter: "W", text: wrap.widen },
+    { key: "reality", label: "Reality-test", letter: "R", text: wrap.reality },
+    { key: "attain", label: "Attain distance", letter: "A", text: wrap.attain },
+    { key: "prepare", label: "Prepare", letter: "P", text: wrap.prepare },
+  ].filter((w) => w.text && w.text.trim().length > 0);
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
+      <Verdict analysis={analysis} intake={intake} />
+
+      {missingInformation.length > 0 && (
+        <Section eyebrow="Open questions" title="What would change this analysis" delay={0.04}>
+          <p className="measure" style={{ fontSize: "0.88rem", color: "var(--color-ink-muted)", marginBottom: "0.9rem", lineHeight: 1.6 }}>
+            This analysis is grounded only in what you provided. These are the gaps that matter most.
           </p>
-          <ul style={{ display: "flex", flexDirection: "column", gap: "0.5rem", listStyle: "none" }}>
-            {analysis.missingInformation.map((q, i) => (
+          <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+            {missingInformation.map((q, i) => (
               <li
                 key={i}
-                style={{ display: "flex", gap: "0.6rem", padding: "0.65rem 0.85rem", borderRadius: "var(--radius-md)", background: "var(--color-surface-alt)" }}
+                style={{
+                  display: "flex",
+                  gap: "0.65rem",
+                  fontSize: "0.88rem",
+                  color: "var(--color-ink-soft)",
+                  lineHeight: 1.6,
+                }}
               >
-                <span style={{ color: "var(--color-ink-faint)", flexShrink: 0 }}>?</span>
-                <span style={{ fontSize: "0.85rem", color: "var(--color-ink-soft)", lineHeight: 1.55 }}>{q}</span>
+                <SearchX size={14} color="var(--color-ink-faint)" style={{ flexShrink: 0, marginTop: 3 }} />
+                {q}
               </li>
             ))}
           </ul>
         </Section>
       )}
 
-      {/* ═══════════════════════════════════════
-          EXPECTED VALUE — visual bar comparison
-      ════════════════════════════════════════ */}
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.1 }}
-        style={{
-          background: "var(--color-surface-raised)",
-          border: "1px solid var(--color-border)",
-          borderRadius: "var(--radius-lg)",
-          padding: "1.25rem 1.5rem",
-        }}
-      >
-        <p style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--color-ink-faint)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "1rem" }}>
-          Expected Value at a Glance
-        </p>
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}>
-          {analysis.optionAnalyses
-            .slice()
-            .sort((a, b) => (b.expectedValue ?? -1) - (a.expectedValue ?? -1))
-            .map((opt) => {
-              const isRec = opt.optionId === analysis.recommendedOptionId;
-              const scored = opt.expectedValue !== null;
-              return (
-                <div key={opt.optionId}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.35rem" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "0.45rem" }}>
-                      {isRec ? (
-                        <CheckCircle2 size={13} color="var(--color-amber)" strokeWidth={2.5} />
-                      ) : (
-                        <XCircle size={13} color="var(--color-border-strong)" strokeWidth={2} />
-                      )}
-                      <span style={{ fontSize: "0.875rem", fontWeight: isRec ? 700 : 500, color: isRec ? "var(--color-ink)" : "var(--color-ink-muted)" }}>
-                        {opt.optionLabel}
-                      </span>
-                      {isRec && (
-                        <span className="badge badge-amber" style={{ fontSize: "0.65rem" }}>Recommended</span>
-                      )}
-                    </div>
-                    <span className={scoreColor(opt.expectedValue)} style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: scored ? "0.95rem" : "0.72rem" }}>
-                      {scored ? `${opt.expectedValue}/100` : "Insufficient information to score reliably"}
-                    </span>
-                  </div>
-                  <div style={{ height: 10, borderRadius: 5, background: "var(--color-surface-alt)", overflow: "hidden", border: scored ? "none" : "1px dashed var(--color-border-strong)" }}>
-                    {scored && (
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${opt.expectedValue}%` }}
-                        transition={{ duration: 1.1, delay: 0.3, ease: "easeOut" }}
-                        style={{
-                          height: "100%",
-                          borderRadius: 5,
-                          background: isRec ? "var(--color-amber)" : "var(--color-border-strong)",
-                        }}
-                      />
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-        </div>
-      </motion.div>
+      <OptionComparison analysis={analysis} />
 
-      {/* ═══════════════════════
-          OPTION-BY-OPTION DETAIL
-      ═══════════════════════ */}
-      <Section icon={Target} title="Option-by-Option Analysis" delay={0.15}>
-        <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-          {analysis.optionAnalyses.map((opt) => {
-            const isRec = opt.optionId === analysis.recommendedOptionId;
-            return (
-              <div
-                key={opt.optionId}
-                style={{
-                  background: "var(--color-surface-alt)",
-                  borderRadius: "var(--radius-md)",
-                  padding: "1.1rem",
-                  border: isRec ? "2px solid var(--color-amber-border)" : "1px solid var(--color-border)",
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.75rem" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                    {isRec && <CheckCircle2 size={15} color="var(--color-amber)" strokeWidth={2.5} />}
-                    <span style={{ fontWeight: 700, fontSize: "0.9rem", color: "var(--color-ink)" }}>{opt.optionLabel}</span>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                    <span style={{ fontSize: "0.75rem", color: "var(--color-ink-faint)" }}>Expected value</span>
-                    <span className={scoreColor(opt.expectedValue)} style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: opt.expectedValue === null ? "0.72rem" : "1rem" }}>
-                      {opt.expectedValue === null ? "Insufficient info" : opt.expectedValue}
-                    </span>
-                  </div>
-                </div>
-
-                {opt.scoreRationale && (
-                  <p style={{ fontSize: "0.75rem", color: "var(--color-ink-faint)", fontStyle: "italic", marginBottom: "0.75rem", marginTop: "-0.4rem" }}>
-                    Based on: {opt.scoreRationale}
-                  </p>
-                )}
-
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginBottom: "0.75rem" }}>
-                  <div>
-                    <p style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--color-sage)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.4rem" }}>✓ Pros</p>
-                    <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "0.3rem" }}>
-                      {opt.pros.map((p, i) => (
-                        <li key={i} style={{ fontSize: "0.82rem", color: "var(--color-ink-soft)", display: "flex", gap: "0.35rem" }}>
-                          <span style={{ color: "var(--color-sage)", flexShrink: 0 }}>+</span>{p}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div>
-                    <p style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--color-rose)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.4rem" }}>✗ Cons</p>
-                    <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "0.3rem" }}>
-                      {opt.cons.map((c, i) => (
-                        <li key={i} style={{ fontSize: "0.82rem", color: "var(--color-ink-soft)", display: "flex", gap: "0.35rem" }}>
-                          <span style={{ color: "var(--color-rose)", flexShrink: 0 }}>−</span>{c}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-
-                {opt.secondOrderEffects.length > 0 && (
-                  <div style={{ marginBottom: "0.6rem" }}>
-                    <p style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--color-sky)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.4rem" }}>↓ Second-order effects</p>
-                    <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-                      {opt.secondOrderEffects.map((e, i) => (
-                        <li key={i} style={{ fontSize: "0.82rem", color: "var(--color-ink-soft)", display: "flex", gap: "0.35rem" }}>
-                          <span style={{ color: "var(--color-sky)", flexShrink: 0 }}>→</span>{e}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {opt.unknownFactors && opt.unknownFactors.length > 0 && (
-                  <div style={{ marginBottom: "0.6rem" }}>
-                    <p style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--color-ink-faint)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.4rem" }}>? Unknown</p>
-                    <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-                      {opt.unknownFactors.map((u, i) => (
-                        <li key={i} style={{ fontSize: "0.82rem", color: "var(--color-ink-faint)", display: "flex", gap: "0.35rem", fontStyle: "italic" }}>
-                          <span style={{ flexShrink: 0 }}>?</span>{u}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                  <span style={{ fontSize: "0.72rem", color: "var(--color-ink-faint)" }}>Regret risk:</span>
-                  <span className={`badge ${regretBadge(opt.regretRisk)}`}>{opt.regretRisk}</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </Section>
-
-      {/* ═══════════════
-          PRE-MORTEM
-      ═══════════════ */}
-      <Section icon={Layers} title="Pre-Mortem Analysis" delay={0.2}>
-        <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-          {analysis.preMortems.map((pm) => (
-            <div key={pm.optionId}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.6rem" }}>
-                {pm.optionId === analysis.recommendedOptionId && (
-                  <CheckCircle2 size={13} color="var(--color-amber)" strokeWidth={2.5} />
-                )}
-                <p style={{ fontWeight: 700, fontSize: "0.875rem", color: "var(--color-ink)" }}>{pm.optionLabel}</p>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.5rem" }}>
-                {[
-                  { label: "Best case",   text: pm.bestCase,    color: "var(--color-sage)",  Icon: TrendingUp  },
-                  { label: "Plausible outcome", text: pm.mostLikely,  color: "var(--color-amber)", Icon: ArrowRight  },
-                  { label: "Worst case",  text: pm.worstCase,   color: "var(--color-rose)",  Icon: AlertTriangle },
-                ].map(({ label, text, color }) => (
-                  <div key={label} style={{ padding: "0.75rem", borderRadius: "var(--radius-md)", background: "var(--color-surface-alt)", borderTop: `3px solid ${color}` }}>
-                    <p style={{ fontSize: "0.7rem", fontWeight: 700, color, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.35rem" }}>{label}</p>
-                    <p style={{ fontSize: "0.8rem", color: "var(--color-ink-soft)", lineHeight: 1.55 }}>{text}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
+      <Section eyebrow="In detail" title="Option analysis" delay={0.06}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+          {analysis.optionAnalyses.map((opt) => (
+            <OptionDetail
+              key={opt.optionId}
+              opt={opt}
+              isRecommended={opt.optionId === analysis.recommendedOptionId}
+              defaultOpen={
+                analysis.optionAnalyses.length <= 2 ||
+                opt.optionId === analysis.recommendedOptionId
+              }
+            />
           ))}
         </div>
       </Section>
 
-      {/* ══════════════════
-          BIASES DETECTED
-      ══════════════════ */}
-      {analysis.biasesDetected.length > 0 && (
-        <Section icon={AlertTriangle} title={`Potential Biases to Watch For (${analysis.biasesDetected.length})`} delay={0.25}>
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-            {analysis.biasesDetected.map((bias) => (
-              <div
-                key={bias.name}
-                style={{ padding: "1rem", borderRadius: "var(--radius-md)", background: "var(--color-surface-alt)", borderLeft: "3px solid var(--color-amber)" }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.4rem" }}>
-                  <span style={{ fontWeight: 700, fontSize: "0.875rem", color: "var(--color-ink)" }}>{bias.name}</span>
-                  <span className={`badge ${severityBadge(bias.severity)}`}>{bias.severity}</span>
+      {analysis.preMortems.length > 0 && (
+        <Section eyebrow="Looking forward" title="Pre-mortem" delay={0.08}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+            {analysis.preMortems.map((pm) => (
+              <div key={pm.optionId}>
+                <p style={{ fontWeight: 600, fontSize: "0.9rem", color: "var(--color-ink)", marginBottom: "0.6rem" }}>
+                  {pm.optionLabel}
+                </p>
+                <div className="premortem-grid" style={{ display: "grid", gap: "0.6rem" }}>
+                  {[
+                    { label: "Best case", text: pm.bestCase, color: "var(--color-sage)" },
+                    { label: "Plausible outcome", text: pm.mostLikely, color: "var(--color-ink-muted)" },
+                    { label: "Worst case", text: pm.worstCase, color: "var(--color-rose)" },
+                  ].map(({ label, text, color }) => (
+                    <div
+                      key={label}
+                      style={{
+                        padding: "0.85rem 0.95rem",
+                        borderRadius: "var(--radius-md)",
+                        background: "var(--color-surface-raised)",
+                        border: "1px solid var(--color-border)",
+                      }}
+                    >
+                      <p className="eyebrow" style={{ color, marginBottom: "0.4rem" }}>
+                        {label}
+                      </p>
+                      <p style={{ fontSize: "0.84rem", color: "var(--color-ink-soft)", lineHeight: 1.6 }}>
+                        {text}
+                      </p>
+                    </div>
+                  ))}
                 </div>
-                <p style={{ fontSize: "0.82rem", color: "var(--color-ink-muted)", marginBottom: "0.4rem" }}>{bias.description}</p>
-                <p style={{ fontSize: "0.82rem", color: "var(--color-ink-soft)", fontStyle: "italic" }}>&ldquo;{bias.evidence}&rdquo;</p>
               </div>
             ))}
           </div>
         </Section>
       )}
 
-      {/* ══════════
-          WRAP
-      ══════════ */}
-      <Section icon={Brain} title="WRAP Framework" delay={0.3}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
-          {[
-            { key: "widen",   label: "W — Widen: Hybrid Path?",       text: analysis.wrapSummary.widen   },
-            { key: "reality", label: "R — Reality: Dangerous Assumption", text: analysis.wrapSummary.reality },
-            { key: "attain",  label: "A — Attain: Success Milestone",  text: analysis.wrapSummary.attain  },
-            { key: "prepare", label: "P — Prepare: Month-3 Fail Plan", text: analysis.wrapSummary.prepare },
-          ].map(({ key, label, text }) => (
-            <div key={key} style={{ padding: "0.9rem", borderRadius: "var(--radius-md)", background: "var(--color-surface-alt)" }}>
-              <p style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--color-amber)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.4rem" }}>{label}</p>
-              <p style={{ fontSize: "0.82rem", color: "var(--color-ink-soft)", lineHeight: 1.6 }}>{text}</p>
-            </div>
-          ))}
-        </div>
-      </Section>
-
-      {/* ══════════════════════
-          KEY QUESTIONS
-      ══════════════════════ */}
-      <Section icon={HelpCircle} title="Questions to Ask Yourself" delay={0.35}>
-        <ul style={{ display: "flex", flexDirection: "column", gap: "0.6rem", listStyle: "none" }}>
-          {analysis.keyQuestions.map((q, i) => (
-            <li
-              key={i}
-              style={{ display: "flex", gap: "0.75rem", padding: "0.75rem", borderRadius: "var(--radius-md)", background: "var(--color-surface-alt)" }}
-            >
-              <span
+      {analysis.biasesDetected.length > 0 && (
+        <Section eyebrow="Worth a second look" title="Potential biases to watch for" delay={0.1}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+            {analysis.biasesDetected.map((bias) => (
+              <div
+                key={bias.name}
                 style={{
-                  flexShrink: 0,
-                  width: 22,
-                  height: 22,
-                  borderRadius: "var(--radius-full)",
-                  background: "var(--color-amber-pale)",
-                  border: "1px solid var(--color-amber-border)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: "0.65rem",
-                  fontWeight: 700,
-                  color: "var(--color-amber)",
-                  fontFamily: "var(--font-mono)",
+                  padding: "1rem 1.15rem",
+                  borderRadius: "var(--radius-md)",
+                  background: "var(--color-surface-raised)",
+                  border: "1px solid var(--color-border)",
+                  borderLeft: "2px solid var(--color-amber)",
                 }}
               >
-                {i + 1}
-              </span>
-              <span style={{ fontSize: "0.875rem", color: "var(--color-ink-soft)", lineHeight: 1.6 }}>{q}</span>
-            </li>
-          ))}
-        </ul>
-      </Section>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.4rem", flexWrap: "wrap" }}>
+                  <span style={{ fontWeight: 600, fontSize: "0.9rem", color: "var(--color-ink)" }}>
+                    {bias.name}
+                  </span>
+                  <span className={`badge ${severityBadge(bias.severity)}`}>{bias.severity}</span>
+                </div>
+                <p style={{ fontSize: "0.85rem", color: "var(--color-ink-muted)", marginBottom: "0.5rem", lineHeight: 1.6 }}>
+                  {bias.description}
+                </p>
+                {bias.evidence && (
+                  <p style={{ fontSize: "0.83rem", color: "var(--color-ink-soft)", lineHeight: 1.6, fontStyle: "italic" }}>
+                    From your input: &ldquo;{bias.evidence}&rdquo;
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </Section>
+      )}
 
-      {/* ══════════════════════════════════════════
-          EXECUTION PLANNER — fill in your numbers
-          The AI gives direction, you define the specifics
-      ════════════════════════════════════════════ */}
+      {wrapItems.length > 0 && (
+        <Section eyebrow="Decision framework" title="WRAP" delay={0.12}>
+          <div className="wrap-grid" style={{ display: "grid", gap: "0.75rem" }}>
+            {wrapItems.map(({ key, label, letter, text }) => (
+              <div
+                key={key}
+                style={{
+                  padding: "1rem 1.15rem",
+                  borderRadius: "var(--radius-md)",
+                  background: "var(--color-surface-raised)",
+                  border: "1px solid var(--color-border)",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
+                  <span
+                    style={{
+                      fontFamily: "var(--font-display)",
+                      fontSize: "0.95rem",
+                      fontWeight: 700,
+                      color: "var(--color-amber)",
+                    }}
+                  >
+                    {letter}
+                  </span>
+                  <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--color-ink)" }}>
+                    {label}
+                  </span>
+                </div>
+                <p style={{ fontSize: "0.84rem", color: "var(--color-ink-soft)", lineHeight: 1.6 }}>
+                  {text}
+                </p>
+              </div>
+            ))}
+          </div>
+        </Section>
+      )}
+
+      {analysis.keyQuestions.length > 0 && (
+        <Section eyebrow="Before you commit" title="Questions to ask yourself" delay={0.14}>
+          <ol style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "0.7rem" }}>
+            {analysis.keyQuestions.map((q, i) => (
+              <li key={i} style={{ display: "flex", gap: "0.75rem", alignItems: "flex-start" }}>
+                <span className="marker" style={{ marginTop: 2 }}>
+                  {i + 1}
+                </span>
+                <span style={{ fontSize: "0.9rem", color: "var(--color-ink-soft)", lineHeight: 1.65 }}>
+                  {q}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </Section>
+      )}
+
       <ExecutionPlanner category={intake.category ?? "other"} />
 
+      {/* Responsive grids — kept here so the layout rules live with the component */}
+      <style>{`
+        .analysis-cols { grid-template-columns: 1fr; }
+        .premortem-grid { grid-template-columns: 1fr; }
+        .wrap-grid { grid-template-columns: 1fr; }
+        @media (min-width: 640px) {
+          .analysis-cols  { grid-template-columns: 1fr 1fr; }
+          .premortem-grid { grid-template-columns: repeat(3, 1fr); }
+          .wrap-grid      { grid-template-columns: 1fr 1fr; }
+        }
+      `}</style>
     </div>
   );
 }
 
-// ─── Execution Planner ────────────────────────────────────────────────────────
+/* ── Execution planner ─────────────────────────────────────────────────── */
 
-const PLANNER_TEMPLATES: Record<string, {
-  rows: { id: string; label: string; placeholder: string; hint: string }[];
-}> = {
+const PLANNER_TEMPLATES: Record<
+  string,
+  { rows: { id: string; label: string; placeholder: string; hint: string }[] }
+> = {
   career: {
     rows: [
-      { id: "runway",    label: "Financial runway target",     placeholder: "e.g. 6 months savings = ₹3–6 lakh",        hint: "How much saved before you'd feel safe making the leap?" },
-      { id: "timesplit", label: "Time split (current vs new)", placeholder: "e.g. 80% job / 20% side project",           hint: "How do you allocate your hours right now?" },
-      { id: "validate",  label: "Validation goal",             placeholder: "e.g. 100 real users OR ₹10k revenue",       hint: "What proof point makes the riskier path clearly correct?" },
-      { id: "trigger",   label: "Switch trigger",              placeholder: "e.g. consistent growth for 2–3 months",     hint: "The specific condition that tells you it's time to commit fully" },
-      { id: "deadline",  label: "Decision deadline",           placeholder: "e.g. Review again in 6 months",             hint: "When do you re-evaluate if you're on the phased path?" },
+      { id: "runway", label: "Financial runway target", placeholder: "e.g. 6 months of expenses saved", hint: "What you'd want banked before committing" },
+      { id: "timesplit", label: "Time split", placeholder: "e.g. 80% current role / 20% side work", hint: "How your hours are allocated now" },
+      { id: "validate", label: "Validation goal", placeholder: "e.g. first paying customer", hint: "The proof point that settles it" },
+      { id: "trigger", label: "Switch trigger", placeholder: "e.g. two months of consistent growth", hint: "The condition that tells you to commit" },
+      { id: "deadline", label: "Re-evaluation date", placeholder: "e.g. review in 6 months", hint: "When you'll honestly reassess" },
     ],
   },
   financial: {
     rows: [
-      { id: "capital",   label: "Available capital",           placeholder: "e.g. ₹5 lakh investable",                  hint: "How much can you put at risk without affecting essentials?" },
-      { id: "maxloss",   label: "Max acceptable loss",         placeholder: "e.g. ₹1 lakh — below this I'm fine",       hint: "The number below which you can sleep at night" },
-      { id: "timeline",  label: "Investment horizon",          placeholder: "e.g. 3 years minimum",                     hint: "How long can this money be locked up?" },
-      { id: "exitplan",  label: "Exit condition",              placeholder: "e.g. 2x return OR stop loss at -30%",       hint: "Pre-commit to when you take profits or cut losses" },
+      { id: "capital", label: "Available capital", placeholder: "e.g. amount you can put at risk", hint: "Without touching essentials" },
+      { id: "maxloss", label: "Max acceptable loss", placeholder: "e.g. the number you can sleep with", hint: "Your real floor" },
+      { id: "timeline", label: "Investment horizon", placeholder: "e.g. 3 years minimum", hint: "How long this can stay locked up" },
+      { id: "exitplan", label: "Exit condition", placeholder: "e.g. target return, or stop loss", hint: "Decide before you're emotional" },
     ],
   },
   business: {
     rows: [
-      { id: "runway",    label: "Cash runway",                 placeholder: "e.g. 8 months at current burn",            hint: "How long can you operate without new revenue?" },
-      { id: "mvp",       label: "MVP target",                  placeholder: "e.g. Working product in 6 weeks",          hint: "What's the smallest thing that proves the idea works?" },
-      { id: "validate",  label: "Validation metric",           placeholder: "e.g. 50 paying customers at ₹500/mo",      hint: "What number means the market actually wants this?" },
-      { id: "trigger",   label: "Scale trigger",               placeholder: "e.g. 3 months of growing revenue",         hint: "When do you go from testing to full commitment?" },
-      { id: "exitplan",  label: "Fail recovery plan",          placeholder: "e.g. Return to freelancing within 2 weeks", hint: "If month 3 is a disaster, what exactly do you do?" },
+      { id: "runway", label: "Cash runway", placeholder: "e.g. months at current burn", hint: "How long you can operate without new revenue" },
+      { id: "mvp", label: "MVP target", placeholder: "e.g. working product in 6 weeks", hint: "Smallest thing that proves the idea" },
+      { id: "validate", label: "Validation metric", placeholder: "e.g. paying customers at a set price", hint: "What proves real demand" },
+      { id: "trigger", label: "Scale trigger", placeholder: "e.g. 3 months of growing revenue", hint: "When testing becomes commitment" },
+      { id: "exitplan", label: "Recovery plan", placeholder: "e.g. return to contracting", hint: "If month 3 goes badly" },
     ],
   },
   relocation: {
     rows: [
-      { id: "runway",    label: "Financial buffer",            placeholder: "e.g. 4 months expenses in new city",       hint: "How long can you survive before needing income there?" },
-      { id: "validate",  label: "Trial condition",             placeholder: "e.g. 3-month trial before full move",      hint: "Can you test the new location before committing?" },
-      { id: "trigger",   label: "Commit trigger",              placeholder: "e.g. Job offer + housing secured",         hint: "What two things need to be true before you move?" },
-      { id: "exitplan",  label: "Return plan",                 placeholder: "e.g. Old lease kept for 2 months",         hint: "How do you reverse this if it doesn't work?" },
+      { id: "runway", label: "Financial buffer", placeholder: "e.g. months of expenses in the new city", hint: "Before you need income there" },
+      { id: "validate", label: "Trial condition", placeholder: "e.g. a 3-month trial before committing", hint: "Can you test before committing?" },
+      { id: "trigger", label: "Commit trigger", placeholder: "e.g. offer signed + housing secured", hint: "What must be true before moving" },
+      { id: "exitplan", label: "Return plan", placeholder: "e.g. keep the old lease for 2 months", hint: "How you reverse this" },
     ],
   },
   default: {
     rows: [
-      { id: "runway",    label: "Resources / runway",          placeholder: "e.g. Time, money, or support available",   hint: "What do you have to work with?" },
-      { id: "validate",  label: "Validation goal",             placeholder: "e.g. What proof point makes this right?",  hint: "The evidence that confirms you're on the correct path" },
-      { id: "trigger",   label: "Commit trigger",              placeholder: "e.g. When X happens, I fully commit",      hint: "The specific condition that escalates your commitment" },
-      { id: "exitplan",  label: "Fail recovery plan",          placeholder: "e.g. If it fails by month 3, I will...",   hint: "Pre-commit to your recovery before you need it" },
-      { id: "deadline",  label: "Re-evaluation date",          placeholder: "e.g. Revisit in 3 months",                 hint: "When do you stop and honestly assess if this is working?" },
+      { id: "runway", label: "Resources available", placeholder: "e.g. time, money, or support", hint: "What you have to work with" },
+      { id: "validate", label: "Validation goal", placeholder: "e.g. the proof point that confirms this", hint: "Evidence you're on the right path" },
+      { id: "trigger", label: "Commit trigger", placeholder: "e.g. when X happens, I commit fully", hint: "The condition that escalates commitment" },
+      { id: "exitplan", label: "Recovery plan", placeholder: "e.g. if this fails by month 3, I will…", hint: "Decide before you need it" },
+      { id: "deadline", label: "Re-evaluation date", placeholder: "e.g. revisit in 3 months", hint: "When you'll reassess honestly" },
     ],
   },
 };
@@ -747,14 +800,9 @@ function getTemplate(category: string) {
 function ExecutionPlanner({ category }: { category: string }) {
   const template = getTemplate(category);
   const [values, setValues] = useState<Record<string, string>>({});
-  const [copied, setCopied]  = useState(false);
-
-  function update(id: string, val: string) {
-    setValues((v) => ({ ...v, [id]: val }));
-  }
+  const [copied, setCopied] = useState(false);
 
   const filledCount = template.rows.filter((r) => values[r.id]?.trim()).length;
-  const allFilled   = filledCount === template.rows.length;
 
   function copyPlan() {
     const lines = template.rows
@@ -767,199 +815,66 @@ function ExecutionPlanner({ category }: { category: string }) {
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 16 }}
+    <motion.section
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: 0.4 }}
-      style={{
-        borderRadius: "var(--radius-lg)",
-        overflow: "hidden",
-        border: "1px solid var(--color-border)",
-      }}
+      transition={{ duration: 0.35, delay: 0.16 }}
+      style={{ borderTop: "1px solid var(--color-border)", paddingTop: "1.75rem" }}
     >
-      {/* Header */}
-      <div
-        style={{
-          background: "var(--color-ink)",
-          padding: "1rem 1.5rem",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: "0.75rem",
-          flexWrap: "wrap",
-        }}
-      >
-        <div>
-          <p style={{ fontSize: "0.7rem", fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.09em", marginBottom: "0.2rem" }}>
-            Step 5 — Make It Executable
-          </p>
-          <h3 style={{ fontFamily: "var(--font-display)", fontSize: "1.05rem", fontWeight: 700, color: "white" }}>
-            Define Your Exact Numbers
-          </h3>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-          <div
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: "var(--radius-full)",
-              background: allFilled ? "var(--color-sage)" : "rgba(255,255,255,0.08)",
-              border: `2px solid ${allFilled ? "var(--color-sage)" : "rgba(255,255,255,0.15)"}`,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              transition: "all 0.3s ease",
-              fontSize: "0.72rem",
-              fontWeight: 700,
-              fontFamily: "var(--font-mono)",
-              color: allFilled ? "white" : "rgba(255,255,255,0.4)",
-            }}
-          >
-            {filledCount}/{template.rows.length}
-          </div>
-        </div>
-      </div>
+      <header style={{ marginBottom: "0.75rem" }}>
+        <span className="eyebrow" style={{ marginBottom: "0.35rem" }}>
+          Final step
+        </span>
+        <h2 className="section-title">Make it executable</h2>
+      </header>
 
-      {/* Explainer */}
-      <div
-        style={{
-          background: "var(--color-amber-pale)",
-          borderBottom: "1px solid var(--color-amber-border)",
-          padding: "0.75rem 1.5rem",
-          display: "flex",
-          gap: "0.625rem",
-          alignItems: "flex-start",
-        }}
+      <p
+        className="measure"
+        style={{ fontSize: "0.88rem", color: "var(--color-ink-muted)", lineHeight: 1.65, marginBottom: "1.25rem" }}
       >
-        <span style={{ fontSize: "0.9rem", flexShrink: 0, marginTop: 1 }}>⚡</span>
-        <p style={{ fontSize: "0.82rem", color: "var(--color-amber)", lineHeight: 1.65, fontWeight: 500 }}>
-          The AI gives direction — you define the specifics. Fill in your actual numbers so the plan has real teeth. These stay in your browser only.
-        </p>
-      </div>
+        Turn the analysis into a concrete plan. Clarity doesn&apos;t know these numbers — you define
+        them. They stay in your browser.
+      </p>
 
-      {/* Input rows */}
-      <div style={{ background: "var(--color-surface-raised)", padding: "1.25rem 1.5rem", display: "flex", flexDirection: "column", gap: "1.1rem" }}>
-        {template.rows.map((row, i) => (
+      <div style={{ display: "flex", flexDirection: "column", gap: "1.1rem" }}>
+        {template.rows.map((row) => (
           <div key={row.id}>
-            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: "0.35rem" }}>
-              <label
-                htmlFor={`exec-${row.id}`}
-                style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--color-ink)", display: "flex", alignItems: "center", gap: "0.5rem" }}
-              >
-                <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    width: 18,
-                    height: 18,
-                    borderRadius: "var(--radius-full)",
-                    background: values[row.id]?.trim() ? "var(--color-sage)" : "var(--color-surface-alt)",
-                    border: `1px solid ${values[row.id]?.trim() ? "var(--color-sage-border)" : "var(--color-border)"}`,
-                    fontSize: "0.6rem",
-                    fontWeight: 700,
-                    fontFamily: "var(--font-mono)",
-                    color: values[row.id]?.trim() ? "white" : "var(--color-ink-faint)",
-                    transition: "all 0.2s ease",
-                    flexShrink: 0,
-                  }}
-                >
-                  {values[row.id]?.trim() ? "✓" : i + 1}
-                </span>
-                {row.label}
-              </label>
-              <span style={{ fontSize: "0.72rem", color: "var(--color-ink-faint)", fontStyle: "italic" }}>
-                {row.hint}
-              </span>
-            </div>
+            <label htmlFor={`exec-${row.id}`} className="field-label">
+              {row.label} <span className="optional">— {row.hint}</span>
+            </label>
             <input
               id={`exec-${row.id}`}
               className="input-field"
               placeholder={row.placeholder}
               value={values[row.id] ?? ""}
-              onChange={(e) => update(row.id, e.target.value)}
+              onChange={(e) => setValues((v) => ({ ...v, [row.id]: e.target.value }))}
             />
           </div>
         ))}
       </div>
 
-      {/* Preview / copy */}
       {filledCount > 0 && (
         <div
           style={{
-            background: "var(--color-surface-alt)",
+            marginTop: "1.25rem",
+            paddingTop: "1rem",
             borderTop: "1px solid var(--color-border)",
-            padding: "1rem 1.5rem",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "1rem",
+            flexWrap: "wrap",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.75rem" }}>
-            <p style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--color-ink-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-              Your Execution Plan
-            </p>
-            <button
-              onClick={copyPlan}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "0.35rem",
-                padding: "0.3rem 0.8rem",
-                borderRadius: "var(--radius-sm)",
-                border: "1px solid var(--color-border)",
-                background: copied ? "var(--color-sage-pale)" : "var(--color-surface-raised)",
-                color: copied ? "var(--color-sage)" : "var(--color-ink-muted)",
-                fontSize: "0.75rem",
-                fontWeight: 500,
-                cursor: "pointer",
-                transition: "all 0.2s ease",
-              }}
-            >
-              {copied ? "✓ Copied" : "Copy"}
-            </button>
-          </div>
-          <div
-            style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: "0.8rem",
-              lineHeight: 1.9,
-              color: "var(--color-ink-soft)",
-              display: "flex",
-              flexDirection: "column",
-              gap: "0.1rem",
-            }}
-          >
-            {template.rows
-              .filter((r) => values[r.id]?.trim())
-              .map((r) => (
-                <div key={r.id} style={{ display: "flex", gap: "0.5rem" }}>
-                  <span style={{ color: "var(--color-amber)", fontWeight: 600, minWidth: 160, flexShrink: 0 }}>
-                    {r.label}:
-                  </span>
-                  <span>{values[r.id]}</span>
-                </div>
-              ))}
-          </div>
-
-          {allFilled && (
-            <div
-              style={{
-                marginTop: "1rem",
-                padding: "0.75rem 1rem",
-                background: "var(--color-sage-pale)",
-                border: "1px solid var(--color-sage-border)",
-                borderRadius: "var(--radius-md)",
-                display: "flex",
-                alignItems: "center",
-                gap: "0.5rem",
-              }}
-            >
-              <span style={{ fontSize: "0.9rem" }}>✅</span>
-              <p style={{ fontSize: "0.82rem", color: "var(--color-sage)", fontWeight: 600 }}>
-                Your plan is complete. Save to journal to keep this alongside your analysis.
-              </p>
-            </div>
-          )}
+          <span className="meta">
+            {filledCount} of {template.rows.length} defined
+          </span>
+          <button onClick={copyPlan} className="btn btn-ghost btn-sm">
+            {copied ? <Check size={13} /> : null}
+            {copied ? "Copied" : "Copy plan"}
+          </button>
         </div>
       )}
-    </motion.div>
+    </motion.section>
   );
 }
