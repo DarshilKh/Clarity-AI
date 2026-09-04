@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { Decision, OutcomeCheckIn } from "@/types";
 import { useToastStore } from "@/store";
-import { Loader2, CheckCircle2, Star } from "lucide-react";
+import { Loader2, Check } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 
 interface Props {
@@ -29,7 +29,7 @@ export default function OutcomeTracker({ decision, onUpdate }: Props) {
 
   async function submitCheckIn() {
     if (!activeCheckIn || !formData.actualOutcome.trim()) {
-      addToast("warning", "Please describe the actual outcome.");
+      addToast("warning", "Describe what actually happened before saving.");
       return;
     }
     setSaving(true);
@@ -37,275 +37,280 @@ export default function OutcomeTracker({ decision, onUpdate }: Props) {
       const res = await fetch("/api/track", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          decisionId: decision.id,
-          daysAfter: activeCheckIn,
-          ...formData,
-        }),
+        body: JSON.stringify({ decisionId: decision.id, daysAfter: activeCheckIn, ...formData }),
       });
       if (!res.ok) throw new Error("Failed to save");
       const { checkIn } = (await res.json()) as { checkIn: OutcomeCheckIn };
-      onUpdate({
-        ...decision,
-        status: "tracking",
-        outcomes: [...existingCheckIns, checkIn],
-      });
+      onUpdate({ ...decision, status: "tracking", outcomes: [...existingCheckIns, checkIn] });
       setActiveCheckIn(null);
       setFormData({ satisfactionScore: 7, actualOutcome: "", lessonLearned: "", wouldChooseAgain: true });
-      addToast("success", `${activeCheckIn}-day check-in saved!`);
+      addToast("success", `${activeCheckIn}-day check-in saved.`);
     } catch {
-      addToast("error", "Could not save check-in");
+      addToast("error", "Could not save your check-in. Please try again.");
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-      <p style={{ fontSize: "0.875rem", color: "var(--color-ink-muted)", lineHeight: 1.65 }}>
-        Track how this decision actually played out. Compare your predictions against reality to improve your future decision-making.
+    <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+      <p className="measure" style={{ fontSize: "var(--text-sm)", color: "var(--color-ink-muted)", lineHeight: 1.65 }}>
+        Compare what you expected with what actually happened. Over time this is what turns individual
+        decisions into better judgement.
       </p>
 
-      {/* Check-in buttons */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0.75rem" }}>
+      {/* Check-in selector */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0.5rem" }}>
         {CHECK_IN_DAYS.map((days) => {
           const done = completedDays.includes(days);
           const existing = existingCheckIns.find((c) => c.daysAfter === days);
+          const active = activeCheckIn === days;
           return (
             <button
               key={days}
-              onClick={() => !done && setActiveCheckIn(activeCheckIn === days ? null : days)}
+              onClick={() => !done && setActiveCheckIn(active ? null : days)}
               disabled={done}
+              aria-pressed={active}
               style={{
-                padding: "1rem",
+                padding: "0.9rem 0.7rem",
                 borderRadius: "var(--radius-md)",
-                border: done
-                  ? "2px solid var(--color-sage-border)"
-                  : activeCheckIn === days
-                  ? "2px solid var(--color-amber)"
-                  : "1px solid var(--color-border)",
+                border: `1px solid ${
+                  done ? "var(--color-sage-border)" : active ? "var(--color-ink)" : "var(--color-border)"
+                }`,
                 background: done
                   ? "var(--color-sage-pale)"
-                  : activeCheckIn === days
-                  ? "var(--color-amber-pale)"
+                  : active
+                  ? "var(--color-surface-alt)"
                   : "var(--color-surface-raised)",
                 cursor: done ? "default" : "pointer",
                 textAlign: "center",
-                transition: "all 0.15s ease",
+                transition: "border-color 0.15s ease, background-color 0.15s ease",
               }}
             >
-              <div style={{ fontSize: "0.65rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: done ? "var(--color-sage)" : "var(--color-ink-faint)", marginBottom: "0.3rem" }}>
-                {done ? "Completed" : "Check-in"}
-              </div>
-              <div
+              <span
                 style={{
-                  fontFamily: "var(--font-mono)",
+                  display: "block",
+                  fontFamily: "var(--font-display)",
                   fontSize: "1.3rem",
-                  fontWeight: 800,
-                  color: done ? "var(--color-sage)" : activeCheckIn === days ? "var(--color-amber)" : "var(--color-ink)",
+                  fontWeight: 600,
+                  letterSpacing: "-0.02em",
+                  color: done ? "var(--color-sage)" : "var(--color-ink)",
+                  lineHeight: 1,
+                  marginBottom: "0.25rem",
                 }}
               >
                 {days}
-              </div>
-              <div style={{ fontSize: "0.72rem", color: "var(--color-ink-faint)", marginTop: "0.2rem" }}>days</div>
-              {done && existing && (
-                <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "0.2rem", marginTop: "0.4rem" }}>
-                  <CheckCircle2 size={12} color="var(--color-sage)" />
-                  <span style={{ fontSize: "0.7rem", color: "var(--color-sage)" }}>
-                    {formatDate(existing.createdAt)}
-                  </span>
-                </div>
-              )}
+              </span>
+              <span className="meta" style={{ display: "block" }}>
+                days
+              </span>
+              <span
+                className="meta"
+                style={{
+                  display: "block",
+                  marginTop: "0.35rem",
+                  color: done ? "var(--color-sage)" : "var(--color-ink-faint)",
+                  fontWeight: done ? 600 : 400,
+                }}
+              >
+                {done && existing ? formatDate(existing.createdAt) : "Not recorded"}
+              </span>
             </button>
           );
         })}
       </div>
 
-      {/* Past check-ins */}
-      {existingCheckIns.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-          <h4 style={{ fontFamily: "var(--font-display)", fontSize: "0.95rem", fontWeight: 700, color: "var(--color-ink)" }}>
-            Past Check-ins
-          </h4>
-          {existingCheckIns.map((ci) => (
-            <div
-              key={ci.id}
-              style={{
-                padding: "1rem 1.25rem",
-                background: "var(--color-surface-alt)",
-                borderRadius: "var(--radius-md)",
-                border: "1px solid var(--color-border)",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.6rem" }}>
-                <span style={{ fontWeight: 700, fontSize: "0.875rem", color: "var(--color-ink)" }}>
-                  {ci.daysAfter}-Day Check-in
-                </span>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
-                  {Array.from({ length: 10 }, (_, i) => (
-                    <Star
-                      key={i}
-                      size={10}
-                      fill={i < ci.satisfactionScore ? "var(--color-amber)" : "transparent"}
-                      color={i < ci.satisfactionScore ? "var(--color-amber)" : "var(--color-border)"}
-                    />
-                  ))}
-                  <span style={{ fontSize: "0.72rem", color: "var(--color-amber)", fontWeight: 700, marginLeft: "0.25rem" }}>
-                    {ci.satisfactionScore}/10
-                  </span>
-                </div>
-              </div>
-              <p style={{ fontSize: "0.82rem", color: "var(--color-ink-soft)", lineHeight: 1.55, marginBottom: "0.4rem" }}>
-                <strong>Outcome:</strong> {ci.actualOutcome}
-              </p>
-              {ci.lessonLearned && (
-                <p style={{ fontSize: "0.82rem", color: "var(--color-ink-muted)", fontStyle: "italic" }}>
-                  <strong>Lesson:</strong> {ci.lessonLearned}
-                </p>
-              )}
-              <p style={{ fontSize: "0.72rem", color: ci.wouldChooseAgain ? "var(--color-sage)" : "var(--color-rose)", fontWeight: 600, marginTop: "0.4rem" }}>
-                {ci.wouldChooseAgain ? "✓ Would choose again" : "✗ Wouldn't choose again"}
-              </p>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Active check-in form */}
+      {/* Active form */}
       {activeCheckIn && (
         <div
           style={{
-            background: "var(--color-surface-raised)",
-            border: "1px solid var(--color-amber-border)",
-            borderRadius: "var(--radius-lg)",
-            padding: "1.25rem",
+            border: "1px solid var(--color-border)",
+            borderLeft: "2px solid var(--color-ink)",
+            borderRadius: "var(--radius-md)",
+            padding: "1.15rem",
             display: "flex",
             flexDirection: "column",
-            gap: "1rem",
+            gap: "1.15rem",
+            background: "var(--color-surface-raised)",
           }}
         >
-          <h4 style={{ fontFamily: "var(--font-display)", fontSize: "0.95rem", fontWeight: 700, color: "var(--color-ink)" }}>
-            {activeCheckIn}-Day Check-in
-          </h4>
+          <p style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--color-ink)" }}>
+            {activeCheckIn}-day check-in
+          </p>
 
-          {/* Satisfaction score */}
           <div>
-            <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: "var(--color-ink-muted)", marginBottom: "0.4rem" }}>
-              Satisfaction with this decision:{" "}
-              <span style={{ color: "var(--color-amber)", fontFamily: "var(--font-mono)", fontWeight: 800 }}>
+            <label htmlFor="satisfaction" className="field-label">
+              How satisfied are you with this decision?{" "}
+              <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600 }}>
                 {formData.satisfactionScore}/10
               </span>
             </label>
             <input
+              id="satisfaction"
               type="range"
               min={1}
               max={10}
               value={formData.satisfactionScore}
               onChange={(e) => setFormData((f) => ({ ...f, satisfactionScore: Number(e.target.value) }))}
-              style={{ width: "100%", accentColor: "var(--color-amber)" }}
+              style={{ width: "100%", accentColor: "var(--color-ink)" }}
             />
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.68rem", color: "var(--color-ink-faint)" }}>
-              <span>Regret it</span>
-              <span>Neutral</span>
-              <span>Best decision ever</span>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span className="meta">Regret it</span>
+              <span className="meta">Very glad</span>
             </div>
           </div>
 
-          {/* Actual outcome */}
           <div>
-            <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: "var(--color-ink-muted)", marginBottom: "0.35rem" }}>
-              What actually happened? *
+            <label htmlFor="actual-outcome" className="field-label">
+              What actually happened?
             </label>
             <textarea
+              id="actual-outcome"
               className="input-field"
               rows={3}
-              placeholder="Describe the actual outcome vs. what you predicted..."
+              placeholder="How it played out, compared with what you expected."
               value={formData.actualOutcome}
               onChange={(e) => setFormData((f) => ({ ...f, actualOutcome: e.target.value }))}
+              style={{ resize: "vertical" }}
+              required
             />
           </div>
 
-          {/* Lesson */}
           <div>
-            <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: "var(--color-ink-muted)", marginBottom: "0.35rem" }}>
-              What did you learn?
+            <label htmlFor="lesson" className="field-label">
+              What would you tell yourself beforehand? <span className="optional">— optional</span>
             </label>
             <textarea
+              id="lesson"
               className="input-field"
               rows={2}
-              placeholder="What would you tell yourself before you made this decision?"
+              placeholder="The lesson worth carrying into the next decision."
               value={formData.lessonLearned}
               onChange={(e) => setFormData((f) => ({ ...f, lessonLearned: e.target.value }))}
+              style={{ resize: "vertical" }}
             />
           </div>
 
-          {/* Would choose again */}
-          <div style={{ display: "flex", gap: "0.75rem" }}>
-            {[true, false].map((val) => (
-              <button
-                key={String(val)}
-                onClick={() => setFormData((f) => ({ ...f, wouldChooseAgain: val }))}
-                style={{
-                  flex: 1,
-                  padding: "0.6rem",
-                  borderRadius: "var(--radius-md)",
-                  border: formData.wouldChooseAgain === val
-                    ? `2px solid ${val ? "var(--color-sage)" : "var(--color-rose)"}`
-                    : "1px solid var(--color-border)",
-                  background: formData.wouldChooseAgain === val
-                    ? val ? "var(--color-sage-pale)" : "var(--color-rose-pale)"
-                    : "var(--color-surface-alt)",
-                  color: formData.wouldChooseAgain === val
-                    ? val ? "var(--color-sage)" : "var(--color-rose)"
-                    : "var(--color-ink-muted)",
-                  fontSize: "0.82rem",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  transition: "all 0.15s ease",
-                }}
-              >
-                {val ? "✓ Would choose again" : "✗ Wouldn't choose again"}
-              </button>
-            ))}
-          </div>
+          <fieldset style={{ border: 0 }}>
+            <legend className="field-label" style={{ marginBottom: "0.5rem" }}>
+              Would you make the same choice again?
+            </legend>
+            <div style={{ display: "flex", gap: "0.5rem" }}>
+              {[true, false].map((val) => (
+                <button
+                  key={String(val)}
+                  type="button"
+                  className="tile"
+                  aria-pressed={formData.wouldChooseAgain === val}
+                  onClick={() => setFormData((f) => ({ ...f, wouldChooseAgain: val }))}
+                  style={{ justifyContent: "center" }}
+                >
+                  {val ? "Yes" : "No"}
+                </button>
+              ))}
+            </div>
+          </fieldset>
 
-          {/* Submit */}
-          <div style={{ display: "flex", gap: "0.75rem" }}>
-            <button
-              onClick={submitCheckIn}
-              disabled={saving}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "0.4rem",
-                padding: "0.65rem 1.25rem",
-                background: "var(--color-amber)",
-                color: "white",
-                border: "none",
-                borderRadius: "var(--radius-md)",
-                fontWeight: 600,
-                fontSize: "0.875rem",
-                cursor: saving ? "not-allowed" : "pointer",
-                opacity: saving ? 0.7 : 1,
-              }}
-            >
-              {saving ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : <CheckCircle2 size={14} />}
-              Save Check-in
+          <div style={{ display: "flex", gap: "0.5rem" }}>
+            <button onClick={submitCheckIn} disabled={saving} className="btn btn-primary">
+              {saving ? (
+                <>
+                  <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
+                  Saving…
+                </>
+              ) : (
+                "Save check-in"
+              )}
             </button>
-            <button
-              onClick={() => setActiveCheckIn(null)}
-              style={{
-                padding: "0.65rem 1rem",
-                background: "transparent",
-                border: "1px solid var(--color-border)",
-                borderRadius: "var(--radius-md)",
-                fontSize: "0.875rem",
-                color: "var(--color-ink-muted)",
-                cursor: "pointer",
-              }}
-            >
+            <button onClick={() => setActiveCheckIn(null)} className="btn btn-ghost">
               Cancel
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Recorded check-ins */}
+      {existingCheckIns.length > 0 && (
+        <div>
+          <span className="eyebrow" style={{ marginBottom: "0.75rem" }}>
+            Recorded check-ins
+          </span>
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+            {existingCheckIns
+              .slice()
+              .sort((a, b) => a.daysAfter - b.daysAfter)
+              .map((ci) => (
+                <div
+                  key={ci.id}
+                  style={{
+                    padding: "1rem 1.15rem",
+                    background: "var(--color-surface-alt)",
+                    borderRadius: "var(--radius-md)",
+                    border: "1px solid var(--color-border)",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: "0.75rem",
+                      marginBottom: "0.6rem",
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <span style={{ fontWeight: 600, fontSize: "var(--text-sm)", color: "var(--color-ink)" }}>
+                      {ci.daysAfter}-day check-in
+                    </span>
+                    <span style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                      <span
+                        style={{
+                          fontFamily: "var(--font-mono)",
+                          fontSize: "var(--text-sm)",
+                          fontWeight: 600,
+                          color: "var(--color-ink)",
+                        }}
+                      >
+                        {ci.satisfactionScore}/10
+                      </span>
+                      <span
+                        className="badge"
+                        style={{
+                          background: ci.wouldChooseAgain ? "var(--color-sage-pale)" : "var(--color-rose-pale)",
+                          color: ci.wouldChooseAgain ? "var(--color-sage)" : "var(--color-rose)",
+                          border: `1px solid ${
+                            ci.wouldChooseAgain ? "var(--color-sage-border)" : "var(--color-rose-border)"
+                          }`,
+                        }}
+                      >
+                        {ci.wouldChooseAgain ? (
+                          <>
+                            <Check size={10} strokeWidth={3} /> Same again
+                          </>
+                        ) : (
+                          "Would change"
+                        )}
+                      </span>
+                    </span>
+                  </div>
+
+                  <div style={{ marginBottom: ci.lessonLearned ? "0.6rem" : 0 }}>
+                    <p className="kv-label">What happened</p>
+                    <p style={{ fontSize: "var(--text-sm)", color: "var(--color-ink-soft)", lineHeight: 1.6 }}>
+                      {ci.actualOutcome}
+                    </p>
+                  </div>
+
+                  {ci.lessonLearned && (
+                    <div>
+                      <p className="kv-label">Lesson</p>
+                      <p style={{ fontSize: "var(--text-sm)", color: "var(--color-ink-muted)", lineHeight: 1.6 }}>
+                        {ci.lessonLearned}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ))}
           </div>
         </div>
       )}
