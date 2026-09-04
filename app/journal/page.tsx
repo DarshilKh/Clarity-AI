@@ -1,373 +1,246 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import Navbar from "@/components/layout/Navbar";
 import Toasts from "@/components/ui/Toasts";
-import DecisionCard from "@/components/decision/DecisionCard";
+import PageHeader from "@/components/ui/PageHeader";
+import EmptyState from "@/components/ui/EmptyState";
+import DecisionRow from "@/components/decision/DecisionRow";
 import type { Decision, DecisionCategory, DecisionStake } from "@/types";
-import { BookOpen, Loader2, Search, SlidersHorizontal } from "lucide-react";
-import Link from "next/link";
-import { categoryEmoji } from "@/lib/utils";
+import { BookOpen, Plus, Search, X } from "lucide-react";
 
-const CATEGORIES: { value: DecisionCategory | "all"; label: string }[] = [
-  { value: "all",          label: "All" },
-  { value: "career",       label: "Career" },
-  { value: "financial",    label: "Financial" },
-  { value: "relationship", label: "Relationship" },
-  { value: "health",       label: "Health" },
-  { value: "education",    label: "Education" },
-  { value: "relocation",   label: "Relocation" },
-  { value: "business",     label: "Business" },
-  { value: "other",        label: "Other" },
-];
-
-const STAKES: { value: DecisionStake | "all"; label: string }[] = [
-  { value: "all",      label: "Any stake" },
-  { value: "low",      label: "Low" },
-  { value: "medium",   label: "Medium" },
-  { value: "high",     label: "High" },
-  { value: "critical", label: "Critical" },
-];
-
-const STATUSES = [
-  { value: "all",      label: "All statuses" },
-  { value: "analyzed", label: "Analyzed" },
-  { value: "decided",  label: "Decided" },
+const STATUSES: { value: string; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "analyzed", label: "Awaiting call" },
+  { value: "decided", label: "Decided" },
   { value: "tracking", label: "Tracking" },
 ];
 
+const STAKES: { value: DecisionStake | "all"; label: string }[] = [
+  { value: "all", label: "Any stake" },
+  { value: "low", label: "Low" },
+  { value: "medium", label: "Medium" },
+  { value: "high", label: "High" },
+  { value: "critical", label: "Critical" },
+];
+
+function RowSkeleton() {
+  return (
+    <div style={{ padding: "1.15rem 1.5rem", borderBottom: "1px solid var(--color-border)" }}>
+      <div className="skeleton" style={{ height: 12, width: 120, marginBottom: 10 }} />
+      <div className="skeleton" style={{ height: 16, width: "50%", marginBottom: 8 }} />
+      <div className="skeleton" style={{ height: 12, width: "70%" }} />
+    </div>
+  );
+}
+
 export default function JournalPage() {
-  const [decisions, setDecisions]     = useState<Decision[]>([]);
-  const [loading, setLoading]         = useState(true);
-  const [query, setQuery]             = useState("");
-  const [categoryFilter, setCatFilter]= useState<DecisionCategory | "all">("all");
+  const [decisions, setDecisions] = useState<Decision[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState("");
+  const [categoryFilter, setCatFilter] = useState<DecisionCategory | "all">("all");
   const [stakeFilter, setStakeFilter] = useState<DecisionStake | "all">("all");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
-    async function load() {
+    (async () => {
       try {
         const res = await fetch("/api/decisions");
         if (res.ok) {
           const data = (await res.json()) as { decisions: Decision[] };
           setDecisions(data.decisions);
         }
-      } catch {
-        // silent
       } finally {
         setLoading(false);
       }
-    }
-    load();
+    })();
   }, []);
 
+  const categories = useMemo(() => {
+    const counts = decisions.reduce<Record<string, number>>((acc, d) => {
+      acc[d.intake.category] = (acc[d.intake.category] ?? 0) + 1;
+      return acc;
+    }, {});
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  }, [decisions]);
+
   const filtered = decisions.filter((d) => {
+    const q = query.trim().toLowerCase();
     const matchesQuery =
-      !query.trim() ||
-      d.intake.title.toLowerCase().includes(query.toLowerCase()) ||
-      d.intake.description.toLowerCase().includes(query.toLowerCase());
-    const matchesCat    = categoryFilter === "all" || d.intake.category === categoryFilter;
-    const matchesStake  = stakeFilter   === "all" || d.intake.stake    === stakeFilter;
-    const matchesStatus = statusFilter  === "all" || d.status          === statusFilter;
+      !q ||
+      d.intake.title.toLowerCase().includes(q) ||
+      d.intake.description.toLowerCase().includes(q);
+    const matchesCat = categoryFilter === "all" || d.intake.category === categoryFilter;
+    const matchesStake = stakeFilter === "all" || d.intake.stake === stakeFilter;
+    const matchesStatus = statusFilter === "all" || d.status === statusFilter;
     return matchesQuery && matchesCat && matchesStake && matchesStatus;
   });
 
-  // Stats for sidebar
-  const totalDecisions = decisions.length;
-  const categoryCounts = decisions.reduce<Record<string, number>>((acc, d) => {
-    acc[d.intake.category] = (acc[d.intake.category] ?? 0) + 1;
-    return acc;
-  }, {});
-  const topCategories = Object.entries(categoryCounts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 4);
+  const filtersActive =
+    Boolean(query.trim()) || categoryFilter !== "all" || stakeFilter !== "all" || statusFilter !== "all";
+
+  function clearFilters() {
+    setQuery("");
+    setCatFilter("all");
+    setStakeFilter("all");
+    setStatusFilter("all");
+  }
 
   return (
     <>
       <Navbar />
       <Toasts />
 
-      <div style={{ minHeight: "calc(100dvh - 64px)", background: "var(--color-surface)" }}>
-        <div style={{ maxWidth: 1100, margin: "0 auto", padding: "2.5rem 1.5rem" }}>
-
-          {/* Header */}
-          <div style={{ marginBottom: "2rem" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.625rem", marginBottom: "0.4rem" }}>
-              <BookOpen size={22} color="var(--color-amber)" strokeWidth={2} />
-              <h1
-                style={{
-                  fontFamily: "var(--font-display)",
-                  fontSize: "2rem",
-                  fontWeight: 800,
-                  color: "var(--color-ink)",
-                  letterSpacing: "-0.03em",
-                }}
-              >
-                Decision Journal
-              </h1>
-            </div>
-            <p style={{ color: "var(--color-ink-muted)", fontSize: "0.9rem" }}>
-              Your full history of decisions, analyses, and outcomes in one place.
-            </p>
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 260px", gap: "1.75rem", alignItems: "start" }}>
-            {/* Main content */}
-            <div>
-              {/* Search + filter bar */}
-              <div style={{ display: "flex", gap: "0.625rem", marginBottom: "1rem", alignItems: "center" }}>
-                <div style={{ flex: 1, position: "relative" }}>
+      <main className="app-body">
+        <div className="app-container">
+          <PageHeader
+            title="Journal"
+            description="Every decision you've analyzed, what you chose, and how it turned out."
+            action={
+              <Link href="/decision/new" className="btn btn-primary">
+                <Plus size={15} strokeWidth={2.4} />
+                New decision
+              </Link>
+            }
+          >
+            {/* Controls */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+              <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap", alignItems: "center" }}>
+                <div style={{ position: "relative", flex: "1 1 260px", minWidth: 0 }}>
                   <Search
                     size={15}
-                    color="var(--color-border-strong)"
+                    color="var(--color-ink-faint)"
                     style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)" }}
+                    aria-hidden
                   />
                   <input
                     className="input-field"
-                    placeholder="Search decisions…"
+                    placeholder="Search decisions"
+                    aria-label="Search decisions"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    style={{ paddingLeft: "2.25rem" }}
+                    style={{ paddingLeft: 36, minHeight: 40 }}
                   />
                 </div>
-                <button
-                  onClick={() => setShowFilters((v) => !v)}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.375rem",
-                    padding: "0.65rem 1rem",
-                    borderRadius: "var(--radius-md)",
-                    border: showFilters ? "1px solid var(--color-amber)" : "1px solid var(--color-border)",
-                    background: showFilters ? "var(--color-amber-pale)" : "var(--color-surface-raised)",
-                    color: showFilters ? "var(--color-amber)" : "var(--color-ink-muted)",
-                    fontSize: "0.85rem",
-                    fontWeight: 500,
-                    cursor: "pointer",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  <SlidersHorizontal size={14} />
-                  Filters
-                </button>
+
+                <div className="segmented" role="group" aria-label="Filter by status">
+                  {STATUSES.map((s) => (
+                    <button
+                      key={s.value}
+                      aria-pressed={statusFilter === s.value}
+                      onClick={() => setStatusFilter(s.value)}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
-              {/* Filter dropdowns */}
-              {showFilters && (
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr 1fr",
-                    gap: "0.625rem",
-                    marginBottom: "1.25rem",
-                    padding: "1rem",
-                    background: "var(--color-surface-raised)",
-                    borderRadius: "var(--radius-md)",
-                    border: "1px solid var(--color-border)",
-                  }}
-                >
-                  <div>
-                    <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 700, color: "var(--color-ink-muted)", marginBottom: "0.35rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                      Category
-                    </label>
-                    <select
-                      className="input-field"
-                      value={categoryFilter}
-                      onChange={(e) => setCatFilter(e.target.value as DecisionCategory | "all")}
-                      style={{ padding: "0.5rem 0.75rem" }}
+              {(categories.length > 0 || filtersActive) && (
+                <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap", alignItems: "center" }}>
+                  <button
+                    className="chip"
+                    aria-pressed={categoryFilter === "all"}
+                    onClick={() => setCatFilter("all")}
+                  >
+                    All categories
+                  </button>
+                  {categories.map(([cat, count]) => (
+                    <button
+                      key={cat}
+                      className="chip"
+                      aria-pressed={categoryFilter === cat}
+                      onClick={() => setCatFilter(cat as DecisionCategory)}
+                      style={{ textTransform: "capitalize" }}
                     >
-                      {CATEGORIES.map((c) => (
-                        <option key={c.value} value={c.value}>{c.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 700, color: "var(--color-ink-muted)", marginBottom: "0.35rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                      Stakes
-                    </label>
-                    <select
-                      className="input-field"
-                      value={stakeFilter}
-                      onChange={(e) => setStakeFilter(e.target.value as DecisionStake | "all")}
-                      style={{ padding: "0.5rem 0.75rem" }}
-                    >
-                      {STAKES.map((s) => (
-                        <option key={s.value} value={s.value}>{s.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 700, color: "var(--color-ink-muted)", marginBottom: "0.35rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                      Status
-                    </label>
-                    <select
-                      className="input-field"
-                      value={statusFilter}
-                      onChange={(e) => setStatusFilter(e.target.value)}
-                      style={{ padding: "0.5rem 0.75rem" }}
-                    >
-                      {STATUSES.map((s) => (
-                        <option key={s.value} value={s.value}>{s.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              )}
+                      {cat}
+                      <span style={{ opacity: 0.6 }}>{count}</span>
+                    </button>
+                  ))}
 
-              {/* Results count */}
-              {!loading && (
-                <p style={{ fontSize: "0.8rem", color: "var(--color-ink-faint)", marginBottom: "0.875rem" }}>
-                  {filtered.length} decision{filtered.length !== 1 ? "s" : ""}
-                  {query || categoryFilter !== "all" || stakeFilter !== "all" || statusFilter !== "all"
-                    ? " matching filters"
-                    : " total"}
-                </p>
-              )}
+                  <span aria-hidden style={{ width: 1, height: 18, background: "var(--color-border)", margin: "0 0.2rem" }} />
 
-              {/* Cards */}
-              {loading ? (
-                <div style={{ display: "flex", alignItems: "center", gap: "0.625rem", padding: "3rem 0", color: "var(--color-ink-muted)" }}>
-                  <Loader2 size={18} style={{ animation: "spin 1s linear infinite" }} />
-                  <span style={{ fontSize: "0.875rem" }}>Loading journal…</span>
-                </div>
-              ) : filtered.length === 0 ? (
-                <div
-                  style={{
-                    textAlign: "center",
-                    padding: "4rem 2rem",
-                    border: "1.5px dashed var(--color-border-strong)",
-                    borderRadius: "var(--radius-xl)",
-                    background: "var(--color-surface-raised)",
-                  }}
-                >
-                  <BookOpen size={36} color="var(--color-border-strong)" strokeWidth={1.5} style={{ margin: "0 auto 1rem" }} />
-                  <h3 style={{ fontFamily: "var(--font-display)", fontSize: "1.15rem", fontWeight: 700, color: "var(--color-ink)", marginBottom: "0.4rem" }}>
-                    {decisions.length === 0 ? "Your journal is empty" : "No results found"}
-                  </h3>
-                  <p style={{ color: "var(--color-ink-muted)", fontSize: "0.875rem", marginBottom: "1.25rem" }}>
-                    {decisions.length === 0
-                      ? "Every decision you analyze will be saved here automatically."
-                      : "Try adjusting your search or filters."}
-                  </p>
-                  {decisions.length === 0 && (
-                    <Link
-                      href="/decision/new"
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "0.375rem",
-                        padding: "0.6rem 1.25rem",
-                        background: "var(--color-amber)",
-                        color: "white",
-                        borderRadius: "var(--radius-md)",
-                        fontWeight: 600,
-                        fontSize: "0.875rem",
-                        textDecoration: "none",
-                      }}
-                    >
-                      Make your first decision
-                    </Link>
+                  <select
+                    aria-label="Filter by stake"
+                    value={stakeFilter}
+                    onChange={(e) => setStakeFilter(e.target.value as DecisionStake | "all")}
+                    className="chip"
+                    style={{ appearance: "none", paddingRight: "1.6rem" }}
+                  >
+                    {STAKES.map((s) => (
+                      <option key={s.value} value={s.value}>
+                        {s.label}
+                      </option>
+                    ))}
+                  </select>
+
+                  {filtersActive && (
+                    <button className="chip" onClick={clearFilters}>
+                      <X size={12} />
+                      Clear
+                    </button>
                   )}
                 </div>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}>
-                  {filtered.map((d) => (
-                    <DecisionCard key={d.id} decision={d} />
-                  ))}
-                </div>
               )}
             </div>
+          </PageHeader>
 
-            {/* Sidebar */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "1rem", position: "sticky", top: "5rem" }}>
-              {/* Summary card */}
-              <div className="card">
-                <h3 style={{ fontFamily: "var(--font-display)", fontSize: "0.95rem", fontWeight: 700, color: "var(--color-ink)", marginBottom: "1rem" }}>
-                  Journal Summary
-                </h3>
-                <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
-                  {[
-                    { label: "Total analyzed",    value: totalDecisions },
-                    { label: "Choices recorded",  value: decisions.filter((d) => d.status === "decided" || d.status === "tracking").length },
-                    { label: "Outcomes tracked",  value: decisions.filter((d) => d.status === "tracking").length },
-                    {
-                      label: "Avg. confidence",
-                      value: totalDecisions > 0
-                        ? `${Math.round(decisions.reduce((s, d) => s + (d.analysis?.confidenceScore ?? 0), 0) / totalDecisions)}%`
-                        : "—",
-                    },
-                  ].map(({ label, value }) => (
-                    <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span style={{ fontSize: "0.8rem", color: "var(--color-ink-muted)" }}>{label}</span>
-                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.875rem", fontWeight: 700, color: "var(--color-ink)" }}>
-                        {value}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+          {/* Results */}
+          <div className="panel" style={{ overflow: "hidden" }}>
+            <div className="panel-header">
+              <h2 className="panel-title">
+                {loading
+                  ? "Loading"
+                  : filtersActive
+                  ? `${filtered.length} ${filtered.length === 1 ? "result" : "results"}`
+                  : `${decisions.length} ${decisions.length === 1 ? "decision" : "decisions"}`}
+              </h2>
+            </div>
+
+            {loading ? (
+              <>
+                <RowSkeleton />
+                <RowSkeleton />
+                <RowSkeleton />
+              </>
+            ) : decisions.length === 0 ? (
+              <div style={{ padding: "clamp(1.5rem, 5vw, 2.5rem)" }}>
+                <EmptyState
+                  icon={BookOpen}
+                  title="Your journal is empty"
+                  description="Once you analyze a decision it's saved here, along with the choice you made and how it played out."
+                  action={
+                    <Link href="/decision/new" className="btn btn-primary">
+                      <Plus size={15} strokeWidth={2.4} />
+                      Analyze a decision
+                    </Link>
+                  }
+                />
               </div>
-
-              {/* Top categories */}
-              {topCategories.length > 0 && (
-                <div className="card">
-                  <h3 style={{ fontFamily: "var(--font-display)", fontSize: "0.95rem", fontWeight: 700, color: "var(--color-ink)", marginBottom: "1rem" }}>
-                    Top Categories
-                  </h3>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                    {topCategories.map(([cat, count]) => (
-                      <div
-                        key={cat}
-                        style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}
-                        onClick={() => setCatFilter(cat as DecisionCategory)}
-                      >
-                        <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                          <span style={{ fontSize: "0.9rem" }}>{categoryEmoji(cat)}</span>
-                          <span style={{ fontSize: "0.8rem", color: "var(--color-ink-soft)", textTransform: "capitalize" }}>{cat}</span>
-                        </div>
-                        <span
-                          style={{
-                            fontFamily: "var(--font-mono)",
-                            fontSize: "0.75rem",
-                            fontWeight: 700,
-                            padding: "0.15rem 0.45rem",
-                            borderRadius: "var(--radius-full)",
-                            background: "var(--color-surface-alt)",
-                            color: "var(--color-ink-muted)",
-                          }}
-                        >
-                          {count}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* CTA */}
-              <Link
-                href="/decision/new"
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "0.4rem",
-                  padding: "0.75rem",
-                  background: "var(--color-ink)",
-                  color: "white",
-                  borderRadius: "var(--radius-md)",
-                  fontWeight: 600,
-                  fontSize: "0.875rem",
-                  textDecoration: "none",
-                  textAlign: "center",
-                }}
-              >
-                + New Decision
-              </Link>
-            </div>
+            ) : filtered.length === 0 ? (
+              <div style={{ padding: "clamp(1.5rem, 5vw, 2.5rem)" }}>
+                <EmptyState
+                  icon={Search}
+                  title="No decisions match these filters"
+                  description="Try a different search term, or clear the filters to see everything in your journal."
+                  action={
+                    <button onClick={clearFilters} className="btn btn-ghost">
+                      Clear filters
+                    </button>
+                  }
+                />
+              </div>
+            ) : (
+              <div>
+                {filtered.map((d) => (
+                  <DecisionRow key={d.id} decision={d} />
+                ))}
+              </div>
+            )}
           </div>
         </div>
-      </div>
+      </main>
     </>
   );
 }
