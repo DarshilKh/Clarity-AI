@@ -4,72 +4,33 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Navbar from "@/components/layout/Navbar";
 import Toasts from "@/components/ui/Toasts";
-import DecisionCard from "@/components/decision/DecisionCard";
+import PageHeader from "@/components/ui/PageHeader";
+import EmptyState from "@/components/ui/EmptyState";
+import StatTile from "@/components/ui/StatTile";
+import DecisionRow from "@/components/decision/DecisionRow";
 import type { Decision } from "@/types";
-import { Plus, Brain, TrendingUp, CheckCircle2, BookOpen, Loader2, Sparkles } from "lucide-react";
+import { Plus, Scale, CheckCircle2, TrendingUp, Gauge, ArrowRight } from "lucide-react";
 
-function StatCard({
-  label, value, icon: Icon, color, sub,
-}: {
-  label: string; value: number | string; icon: React.ElementType; color: string; sub?: string;
-}) {
+function RowSkeleton() {
   return (
-    <div
-      className="card"
-      style={{ display: "flex", alignItems: "center", gap: "0.875rem" }}
-    >
-      <div
-        style={{
-          width: 42,
-          height: 42,
-          borderRadius: "var(--radius-md)",
-          background: "var(--color-surface-alt)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          flexShrink: 0,
-        }}
-      >
-        <Icon size={19} color={color} strokeWidth={2} />
-      </div>
-      <div style={{ minWidth: 0 }}>
-        <p
-          style={{
-            fontSize: "clamp(1.25rem, 4vw, 1.6rem)",
-            fontWeight: 800,
-            color: "var(--color-ink)",
-            fontFamily: "var(--font-mono)",
-            lineHeight: 1,
-          }}
-        >
-          {value}
-        </p>
-        <p style={{ fontSize: "0.75rem", color: "var(--color-ink-faint)", marginTop: "0.25rem", lineHeight: 1.3 }}>
-          {label}
-          {sub && <span style={{ display: "block", color: "var(--color-ink-faint)", fontSize: "0.68rem" }}>{sub}</span>}
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function SkeletonCard() {
-  return (
-    <div className="card" style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-      <div className="shimmer" style={{ height: 20, width: "60%" }} />
-      <div className="shimmer" style={{ height: 14, width: "90%" }} />
-      <div className="shimmer" style={{ height: 14, width: "75%" }} />
-      <div className="shimmer" style={{ height: 32, width: "40%", marginTop: "0.5rem" }} />
+    <div style={{ padding: "1.15rem 1.5rem", borderBottom: "1px solid var(--color-border)" }}>
+      <div className="skeleton" style={{ height: 12, width: 90, marginBottom: 10 }} />
+      <div className="skeleton" style={{ height: 16, width: "55%", marginBottom: 8 }} />
+      <div className="skeleton" style={{ height: 12, width: "80%" }} />
     </div>
   );
 }
 
 export default function DashboardPage() {
   const [decisions, setDecisions] = useState<Decision[]>([]);
-  const [loading, setLoading]     = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [usage, setUsage] = useState<{ remaining: number | null; limit: number | null }>({
+    remaining: null,
+    limit: null,
+  });
 
   useEffect(() => {
-    async function fetchDecisions() {
+    (async () => {
       try {
         const res = await fetch("/api/decisions");
         if (res.ok) {
@@ -79,214 +40,155 @@ export default function DashboardPage() {
       } finally {
         setLoading(false);
       }
-    }
-    fetchDecisions();
+    })();
+
+    fetch("/api/usage")
+      .then((r) => r.json())
+      .then((d) => setUsage({ remaining: d.remaining, limit: d.limit }))
+      .catch(() => {});
   }, []);
 
-  const decided  = decisions.filter((d) => d.status === "decided" || d.status === "tracking").length;
-  const tracked  = decisions.filter((d) => d.status === "tracking").length;
-  const avgConf  = decisions.length > 0
-    ? Math.round(decisions.reduce((s, d) => s + (d.analysis?.confidenceScore ?? 0), 0) / decisions.length)
-    : 0;
+  const decided = decisions.filter((d) => d.status === "decided" || d.status === "tracking").length;
+  const tracked = decisions.filter((d) => d.status === "tracking").length;
+  const avgConf =
+    decisions.length > 0
+      ? Math.round(decisions.reduce((s, d) => s + (d.analysis?.confidenceScore ?? 0), 0) / decisions.length)
+      : 0;
+
+  const awaiting = decisions.filter((d) => d.status === "analyzed");
+  const recent = decisions.slice(0, 6);
 
   return (
     <>
       <Navbar />
       <Toasts />
 
-      <div style={{ minHeight: "calc(100dvh - 60px)", background: "var(--color-surface)" }}>
-        <div className="page-wrap">
+      <main className="app-body">
+        <div className="app-container">
+          <PageHeader
+            title="Dashboard"
+            description="Your decisions, the choices you recorded, and how they turned out."
+            action={
+              <Link href="/decision/new" className="btn btn-primary">
+                <Plus size={15} strokeWidth={2.4} />
+                New decision
+              </Link>
+            }
+          />
 
-          {/* Header */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "flex-start",
-              justifyContent: "space-between",
-              marginBottom: "1.75rem",
-              flexWrap: "wrap",
-              gap: "1rem",
-            }}
-          >
-            <div>
-              <h1
-                style={{
-                  fontFamily: "var(--font-display)",
-                  fontSize: "clamp(1.5rem, 5vw, 2rem)",
-                  fontWeight: 800,
-                  color: "var(--color-ink)",
-                  letterSpacing: "-0.03em",
-                  marginBottom: "0.25rem",
-                }}
-              >
-                Dashboard
-              </h1>
-              <p style={{ color: "var(--color-ink-muted)", fontSize: "0.875rem" }}>
-                Your decisions, analyses, and outcomes.
-              </p>
-            </div>
-
-            <Link
-              href="/decision/new"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "0.4rem",
-                padding: "0.65rem 1.25rem",
-                background: "var(--color-ink)",
-                color: "white",
-                borderRadius: "var(--radius-md)",
-                fontWeight: 600,
-                fontSize: "0.875rem",
-                textDecoration: "none",
-                minHeight: 44,
-                whiteSpace: "nowrap",
-              }}
-            >
-              <Plus size={15} />
-              New Decision
-            </Link>
-          </div>
-
-          {/* Stats grid */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-              gap: "0.875rem",
-              marginBottom: "2rem",
-            }}
-          >
-            <StatCard label="Total analyzed"   value={decisions.length} icon={Brain}        color="var(--color-amber)" />
-            <StatCard label="Choices recorded"  value={decided}         icon={CheckCircle2}  color="var(--color-sage)" />
-            <StatCard label="Outcomes tracked"  value={tracked}         icon={TrendingUp}    color="var(--color-sky)" />
-            <StatCard label="Avg. confidence"   value={decisions.length ? `${avgConf}%` : "—"} icon={BookOpen} color="var(--color-rose)" sub="AI analysis score" />
-          </div>
-
-          {/* Content */}
-          {loading ? (
+          {/* Overview */}
+          <section aria-label="Overview" style={{ marginBottom: "2rem" }}>
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
-                gap: "1rem",
+                gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 190px), 1fr))",
+                gap: "0.75rem",
               }}
             >
-              {[1, 2, 3].map((i) => <SkeletonCard key={i} />)}
+              <StatTile label="Decisions analyzed" value={loading ? "—" : decisions.length} icon={Scale} />
+              <StatTile label="Choices recorded" value={loading ? "—" : decided} icon={CheckCircle2} />
+              <StatTile label="Outcomes tracked" value={loading ? "—" : tracked} icon={TrendingUp} />
+              <StatTile
+                label="Average confidence"
+                value={loading ? "—" : decisions.length ? `${avgConf}%` : "—"}
+                sub={decisions.length ? "across your analyses" : undefined}
+                icon={Gauge}
+              />
             </div>
-          ) : decisions.length === 0 ? (
-            /* Empty state */
-            <div
+          </section>
+
+          {/* Awaiting a decision — the actionable nudge */}
+          {!loading && awaiting.length > 0 && (
+            <section
+              className="panel"
               style={{
-                textAlign: "center",
-                padding: "clamp(2rem, 8vw, 5rem) clamp(1rem, 4vw, 2rem)",
-                border: "1.5px dashed var(--color-border-strong)",
-                borderRadius: "var(--radius-xl)",
-                background: "var(--color-surface-raised)",
+                padding: "1.1rem 1.35rem",
+                marginBottom: "2rem",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "1rem",
+                flexWrap: "wrap",
+                borderLeft: "2px solid var(--color-amber)",
               }}
             >
-              <div
-                style={{
-                  width: 56,
-                  height: 56,
-                  borderRadius: "var(--radius-full)",
-                  background: "var(--color-surface-alt)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  margin: "0 auto 1.25rem",
-                }}
-              >
-                <Brain size={26} color="var(--color-border-strong)" strokeWidth={1.5} />
+              <div style={{ minWidth: 0 }}>
+                <p style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--color-ink)", marginBottom: "0.2rem" }}>
+                  {awaiting.length} {awaiting.length === 1 ? "analysis is" : "analyses are"} waiting on your call
+                </p>
+                <p className="meta">
+                  Recording what you chose is what makes the outcome worth tracking later.
+                </p>
               </div>
-              <h3
-                style={{
-                  fontFamily: "var(--font-display)",
-                  fontSize: "clamp(1.1rem, 4vw, 1.4rem)",
-                  fontWeight: 700,
-                  color: "var(--color-ink)",
-                  marginBottom: "0.5rem",
-                }}
-              >
-                No decisions yet
-              </h3>
-              <p
-                style={{
-                  color: "var(--color-ink-muted)",
-                  fontSize: "0.9rem",
-                  marginBottom: "1.5rem",
-                  maxWidth: 360,
-                  margin: "0 auto 1.5rem",
-                  lineHeight: 1.65,
-                }}
-              >
-                Analyze your first high-stakes decision and get a clear, unbiased recommendation in under 30 seconds.
-              </p>
-              <Link
-                href="/decision/new"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "0.5rem",
-                  padding: "0.75rem 1.5rem",
-                  background: "var(--color-amber)",
-                  color: "white",
-                  borderRadius: "var(--radius-md)",
-                  fontWeight: 600,
-                  fontSize: "0.9rem",
-                  textDecoration: "none",
-                  minHeight: 44,
-                }}
-              >
-                <Sparkles size={15} />
-                Analyze your first decision
+              <Link href={`/decision/${awaiting[0].id}`} className="btn btn-ghost btn-sm">
+                Review
+                <ArrowRight size={14} />
               </Link>
-            </div>
-          ) : (
-            <div>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  marginBottom: "1rem",
-                  flexWrap: "wrap",
-                  gap: "0.5rem",
-                }}
-              >
-                <h2
-                  style={{
-                    fontFamily: "var(--font-display)",
-                    fontSize: "1.1rem",
-                    fontWeight: 700,
-                    color: "var(--color-ink)",
-                  }}
-                >
-                  Recent Decisions
-                </h2>
-                <Link
-                  href="/journal"
-                  style={{ fontSize: "0.82rem", color: "var(--color-amber)", fontWeight: 500 }}
-                >
-                  View all in journal →
-                </Link>
+            </section>
+          )}
+
+          {/* Recent decisions */}
+          <section aria-label="Recent decisions">
+            <div className="panel" style={{ overflow: "hidden" }}>
+              <div className="panel-header">
+                <div>
+                  <h2 className="panel-title">Recent decisions</h2>
+                  {!loading && decisions.length > 0 && (
+                    <p className="meta" style={{ marginTop: "0.2rem" }}>
+                      Showing {Math.min(recent.length, decisions.length)} of {decisions.length}
+                    </p>
+                  )}
+                </div>
+                {decisions.length > recent.length && (
+                  <Link href="/journal" className="link-quiet" style={{ fontSize: "var(--text-xs)", whiteSpace: "nowrap" }}>
+                    View all
+                  </Link>
+                )}
               </div>
 
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 340px), 1fr))",
-                  gap: "1rem",
-                }}
-              >
-                {decisions.slice(0, 9).map((d) => (
-                  <DecisionCard key={d.id} decision={d} />
-                ))}
-              </div>
+              {loading ? (
+                <>
+                  <RowSkeleton />
+                  <RowSkeleton />
+                  <RowSkeleton />
+                </>
+              ) : decisions.length === 0 ? (
+                <div style={{ padding: "clamp(1.5rem, 5vw, 2.5rem)" }}>
+                  <EmptyState
+                    icon={Scale}
+                    title="No decisions yet"
+                    description="Describe a decision you're weighing and Clarity will structure it — the trade-offs, what's still unknown, and what would change the answer."
+                    hints={[
+                      "Describe the decision and the options you're weighing",
+                      "Add the context and constraints that actually matter",
+                      "Read the recommendation, then record what you chose",
+                    ]}
+                    action={
+                      <Link href="/decision/new" className="btn btn-primary">
+                        <Plus size={15} strokeWidth={2.4} />
+                        Analyze your first decision
+                      </Link>
+                    }
+                  />
+                </div>
+              ) : (
+                <div>
+                  {recent.map((d) => (
+                    <DecisionRow key={d.id} decision={d} />
+                  ))}
+                </div>
+              )}
             </div>
+          </section>
+
+          {/* Usage footnote — understated, never a quota dashboard */}
+          {usage.remaining !== null && usage.limit !== null && usage.limit > 0 && (
+            <p className="meta" style={{ marginTop: "1rem", textAlign: "right" }}>
+              {usage.remaining} of {usage.limit} {usage.limit === 1 ? "analysis" : "analyses"} remaining today
+            </p>
           )}
         </div>
-      </div>
+      </main>
     </>
   );
 }
