@@ -548,7 +548,7 @@ export default function AnalysisResults({ analysis, intake }: Props) {
   const wrapItems = [
     { key: "widen", label: "Widen", letter: "W", text: wrap.widen },
     { key: "reality", label: "Reality-test", letter: "R", text: wrap.reality },
-    { key: "attain", label: "Attain distance", letter: "A", text: wrap.attain },
+    { key: "attain", label: "Attain", letter: "A", text: wrap.attain },
     { key: "prepare", label: "Prepare", letter: "P", text: wrap.prepare },
   ].filter((w) => w.text && w.text.trim().length > 0);
 
@@ -684,21 +684,21 @@ export default function AnalysisResults({ analysis, intake }: Props) {
                   border: "1px solid var(--color-border)",
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
-                  <span
-                    style={{
-                      fontFamily: "var(--font-display)",
-                      fontSize: "0.95rem",
-                      fontWeight: 700,
-                      color: "var(--color-amber)",
-                    }}
-                  >
-                    {letter}
-                  </span>
-                  <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--color-ink)" }}>
-                    {label}
-                  </span>
-                </div>
+                {/* Single heading string — a letter and label in separate
+                    elements ran together visually ("WWiden") because only a
+                    flex gap separated them. */}
+                <p
+                  style={{
+                    fontSize: "0.85rem",
+                    fontWeight: 600,
+                    color: "var(--color-ink)",
+                    marginBottom: "0.5rem",
+                  }}
+                >
+                  <span style={{ color: "var(--color-amber)" }}>{letter}</span>
+                  {" — "}
+                  {label}
+                </p>
                 <p style={{ fontSize: "0.84rem", color: "var(--color-ink-soft)", lineHeight: 1.6 }}>
                   {text}
                 </p>

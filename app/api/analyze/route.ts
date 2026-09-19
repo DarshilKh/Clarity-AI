@@ -2,10 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { analyzeDecision } from "@/lib/analyze";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { checkUsage, consumeUsage, getDeviceId } from "@/lib/usage";
-import { rateLimitResponse } from "@/lib/ratelimit";
+import { rateLimitResponse, ANON_FREE_ANALYSES } from "@/lib/ratelimit";
 import type { AnalyzeRequest } from "@/types";
 
 export const runtime = "nodejs";
+
+// A grounded analysis regularly takes 5–30s (longer when Groq queues the
+// request). The platform default of 10s cuts that off mid-flight and surfaces
+// as a 500 in production while working fine locally.
+export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   try {
@@ -47,41 +52,49 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ── 3. Usage check — never consumes quota here ───────────────────────────
-    // An unauthenticated caller with no anonymous allowance left gets a
-    // distinct 401 so the client can raise the auth wall rather than showing
-    // a generic error.
-    const usage = await checkUsage(req, userId, deviceId);
-
-    if (!userId && usage.exhausted) {
+    // ── 3. Auth wall ─────────────────────────────────────────────────────────
+    // Independent of quotas: an unauthenticated caller with no anonymous
+    // allowance configured always gets a distinct 401 so the client raises the
+    // auth wall rather than showing a generic error. Turning usage limits off
+    // must not turn the account requirement off.
+    if (!userId && ANON_FREE_ANALYSES <= 0) {
       return NextResponse.json(
-        {
-          error: "auth_required",
-          message: "Create a free account to run this analysis.",
-        },
+        { error: "auth_required", message: "Create a free account to run this analysis." },
         { status: 401 }
       );
     }
 
+    // ── 4. Usage check — never consumes quota here ───────────────────────────
+    const usage = await checkUsage(req, userId, deviceId);
+
     if (usage.exhausted) {
+      // An anonymous visitor who used their preview allowance is asked to
+      // create an account; a signed-in user has genuinely hit their limit.
+      if (!userId) {
+        return NextResponse.json(
+          { error: "auth_required", message: "Create a free account to run this analysis." },
+          { status: 401 }
+        );
+      }
       return rateLimitResponse(usage.reset, 0);
     }
 
-    // ── 4. Run the analysis ──────────────────────────────────────────────────
+    // ── 5. Run the analysis ──────────────────────────────────────────────────
     const analysis = await analyzeDecision(intake);
 
-    // ── 5. Only a successful analysis costs the user an analysis ─────────────
+    // ── 6. Only a successful analysis costs the user an analysis ─────────────
     const afterUsage = await consumeUsage(req, userId, deviceId);
+
+    const headers: Record<string, string> = {
+      "X-RateLimit-Reset": new Date(afterUsage.reset).toISOString(),
+    };
+    if (afterUsage.remaining !== null) {
+      headers["X-RateLimit-Remaining"] = String(afterUsage.remaining);
+    }
 
     return NextResponse.json(
       { analysis, usage: { remaining: afterUsage.remaining, limit: afterUsage.limit } },
-      {
-        status: 200,
-        headers: {
-          "X-RateLimit-Remaining": String(afterUsage.remaining),
-          "X-RateLimit-Reset": new Date(afterUsage.reset).toISOString(),
-        },
-      }
+      { status: 200, headers }
     );
   } catch (err) {
     console.error("[/api/analyze]", err);

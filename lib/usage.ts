@@ -11,16 +11,30 @@ import {
 const DEVICE_COOKIE = "clarity_device";
 const DEVICE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365; // 1 year
 
+/**
+ * Master switch for usage limits. Set DISABLE_RATE_LIMIT=true to turn limits
+ * off entirely — when off, Redis is never contacted, so the analyze endpoint
+ * has no dependency on Upstash being configured.
+ */
+export const RATE_LIMITING_DISABLED = process.env.DISABLE_RATE_LIMIT === "true";
+
 export interface UsageStatus {
-  /** Analyses left in the current window. */
-  remaining: number;
-  /** Total allowance for this caller. */
-  limit: number;
+  /** Analyses left in the current window. null when limits are off. */
+  remaining: number | null;
+  /** Total allowance for this caller. null when limits are off. */
+  limit: number | null;
   /** Epoch ms when the window resets. */
   reset: number;
   /** True when the caller has none left. */
   exhausted: boolean;
 }
+
+const UNLIMITED: UsageStatus = {
+  remaining: null,
+  limit: null,
+  reset: Date.now(),
+  exhausted: false,
+};
 
 /**
  * Reads (and lazily issues) the device id used to scope the anonymous
@@ -58,12 +72,17 @@ function limitFor(userId: string | null): number {
 /**
  * Checks how much quota is left WITHOUT consuming any. Call this before
  * running an analysis so a failed run never costs the user an analysis.
+ *
+ * If the rate-limit backend is unreachable this fails OPEN: a Redis outage or
+ * a missing Upstash credential must never take down the core feature.
  */
 export async function checkUsage(
   req: Request,
   userId: string | null,
   deviceId: string | null
 ): Promise<UsageStatus> {
+  if (RATE_LIMITING_DISABLED) return { ...UNLIMITED, reset: Date.now() };
+
   const limit = limitFor(userId);
 
   // Anonymous allowance can be switched off entirely.
@@ -71,38 +90,52 @@ export async function checkUsage(
     return { remaining: 0, limit: 0, reset: Date.now(), exhausted: true };
   }
 
-  const identifier = getRatelimitIdentifier(req, userId, deviceId);
-  const { remaining, reset } = await limiterFor(userId).getRemaining(identifier);
+  try {
+    const identifier = getRatelimitIdentifier(req, userId, deviceId);
+    const { remaining, reset } = await limiterFor(userId).getRemaining(identifier);
 
-  // The anon limiter is built with a floor of 1 token, so clamp to the real
-  // configured allowance.
-  const effectiveRemaining = Math.min(remaining, limit);
+    // The anon limiter is built with a floor of 1 token, so clamp to the real
+    // configured allowance.
+    const effectiveRemaining = Math.min(remaining, limit);
 
-  return {
-    remaining: Math.max(0, effectiveRemaining),
-    limit,
-    reset,
-    exhausted: effectiveRemaining <= 0,
-  };
+    return {
+      remaining: Math.max(0, effectiveRemaining),
+      limit,
+      reset,
+      exhausted: effectiveRemaining <= 0,
+    };
+  } catch (err) {
+    console.error("[usage] rate limit backend unavailable, allowing request", err);
+    return { ...UNLIMITED, reset: Date.now() };
+  }
 }
 
 /**
  * Consumes one analysis from the caller's allowance. Call this only AFTER an
- * analysis has completed successfully.
+ * analysis has completed successfully. Never throws — a bookkeeping failure
+ * must not turn a successful analysis into an error for the user.
  */
 export async function consumeUsage(
   req: Request,
   userId: string | null,
   deviceId: string | null
 ): Promise<UsageStatus> {
-  const limit = limitFor(userId);
-  const identifier = getRatelimitIdentifier(req, userId, deviceId);
-  const { remaining, reset } = await limiterFor(userId).limit(identifier);
+  if (RATE_LIMITING_DISABLED) return { ...UNLIMITED, reset: Date.now() };
 
-  return {
-    remaining: Math.max(0, Math.min(remaining, limit)),
-    limit,
-    reset,
-    exhausted: remaining <= 0,
-  };
+  const limit = limitFor(userId);
+
+  try {
+    const identifier = getRatelimitIdentifier(req, userId, deviceId);
+    const { remaining, reset } = await limiterFor(userId).limit(identifier);
+
+    return {
+      remaining: Math.max(0, Math.min(remaining, limit)),
+      limit,
+      reset,
+      exhausted: remaining <= 0,
+    };
+  } catch (err) {
+    console.error("[usage] could not record usage", err);
+    return { ...UNLIMITED, reset: Date.now() };
+  }
 }

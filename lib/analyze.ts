@@ -63,10 +63,11 @@ Field-specific reminders:
 - unknownFactors: category-appropriate missing factors, phrased "Not enough information provided to evaluate X."
 - regretRisk: reason from known reversibility/stakes; use "medium" if genuinely uncertain rather than asserting false certainty.
 - recommendationType: "option" (facts support one, set recommendedOptionId), "phased" (stated facts support combining, not a default), or "insufficient_evidence" (facts don't differentiate at all) — legitimate outcomes all three, per the DECISIVENESS rule.
+- When recommendationType is "phased", recommendationReasoning MUST also name the condition under which the phased path would NOT be appropriate — the circumstance that would make sequencing the wrong call (e.g. if a qualification turns out to be a prerequisite for the user's target path, deferring it stops being sensible). State it as an unresolved condition to check, never as an invented fact about their situation.
 - missingInformation: concrete, decision-specific follow-up questions (not boilerplate) — e.g. for a job/offer decision: compensation, role/title, work type, remote/hybrid, location, hours, team, manager, learning, promotion path, stability, benefits, notice period, bond restrictions, long-term goals — only the ones actually missing and relevant here.
 - biasesDetected: only with direct evidence quoted/paraphrased from the user; empty array if none.
-- preMortems.bestCase/worstCase: grounded, may explore conditional possibilities tied to the user's stated concerns ("If Company A's [stated concern] turns out poorly, then...") — never fabricate exact figures, dates, or events not supplied.
-- preMortems.mostLikely: NOT a probability claim — never say "most likely" or imply odds unless the user's input actually supports a likelihood judgment. Phrase as "A plausible outcome is..."; if truly nothing is known, say the outcome can't be predicted from what's known.
+- preMortems.bestCase/worstCase: grounded, may explore conditional possibilities tied to the user's stated concerns ("If Company A's [stated concern] turns out poorly, then...") — never fabricate exact figures, dates, or events not supplied. Do NOT assert a MAGNITUDE the evidence can't support: no "high-paying", "higher-earning roles", "the salary increase is modest", "recoups the cost quickly", "breaks even after several years", or any implied size, speed, or payback period the user never gave. Equally, do NOT assume how something is FINANCED or what it costs — never introduce debt, loans, tuition, savings drawdown or lost income figures unless the user stated them. When magnitude is unknown, stay qualitative — "materially improves career prospects", "delivers less career or financial benefit than expected", "the cost proves hard to justify". A number, rate, cost or timeframe may appear only if the user supplied it or you label it explicitly as an assumption.
+- preMortems.mostLikely: NOT a probability claim — never say "most likely" or imply odds unless the user's input actually supports a likelihood judgment. Phrase as "A plausible outcome is..."; if truly nothing is known, say the outcome can't be predicted from what's known. Use that opener ONLY here — bestCase and worstCase are already understood as scenarios and must not repeat it, or all three read identically side by side.
 - wrapSummary: all four of widen/reality/attain/prepare MUST be a real non-empty sentence — if there isn't enough information for one, say that explicitly in the field ("Not enough information provided to identify a testable assumption here"); never leave one blank or thin.
 - confidenceReasoning: required — name the specific unresolved unknown most able to reverse the recommendation, or state plainly that none is likely to.
 
@@ -115,24 +116,65 @@ Return EXACTLY this JSON structure (no extra keys, no markdown):
 
 Option IDs: ${intake.options.map((o) => o.id).join(", ")}`;
 
-  const completion = await groq.chat.completions.create({
-    model: GROQ_MODEL,
-    messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: userPrompt },
-    ],
-    temperature: 0.2, // lower = more consistent, less hallucination
-    max_tokens: 4096,
-    response_format: { type: "json_object" },
-  });
+  async function requestAnalysis(): Promise<DecisionAnalysis> {
+    const completion = await groq.chat.completions.create({
+      model: GROQ_MODEL,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      temperature: 0.2, // lower = more consistent, less hallucination
+      max_tokens: 4096,
+      response_format: { type: "json_object" },
+    });
 
-  console.log("[analyzeDecision] usage", JSON.stringify(completion.usage), "finish_reason", completion.choices[0]?.finish_reason);
+    console.log(
+      "[analyzeDecision] usage",
+      JSON.stringify(completion.usage),
+      "finish_reason",
+      completion.choices[0]?.finish_reason
+    );
 
-  const raw = completion.choices[0]?.message?.content;
-  if (!raw) throw new Error("Empty response from Groq");
+    const raw = completion.choices[0]?.message?.content;
+    if (!raw) throw new Error("Empty response from Groq");
 
-  const parsed = JSON.parse(raw) as Record<string, unknown>;
-  return normalizeAnalysis(parsed, intake);
+    return normalizeAnalysis(JSON.parse(raw) as Record<string, unknown>, intake);
+  }
+
+  // json_object mode guarantees valid JSON, not a complete one — the model
+  // occasionally returns a partial object (an option missing, no pre-mortems)
+  // while still reporting finish_reason "stop". Rather than render a
+  // half-empty analysis, retry once and keep whichever came back more
+  // complete.
+  const first = await requestAnalysis();
+  if (completeness(first, intake) === 1) return first;
+
+  console.warn("[analyzeDecision] incomplete response, retrying once");
+  try {
+    const second = await requestAnalysis();
+    return completeness(second, intake) > completeness(first, intake) ? second : first;
+  } catch (retryErr) {
+    console.error("[analyzeDecision] retry failed, using first response", retryErr);
+    return first;
+  }
+}
+
+/**
+ * Fraction of the expected sections that actually came back populated.
+ * 1 means every option was analysed and no section is empty.
+ */
+function completeness(analysis: DecisionAnalysis, intake: DecisionIntake): number {
+  const expectedOptions = intake.options.length;
+  const checks = [
+    analysis.optionAnalyses.length >= expectedOptions,
+    analysis.preMortems.length >= expectedOptions,
+    analysis.keyQuestions.length > 0,
+    analysis.missingInformation.length > 0,
+    analysis.recommendationReasoning.trim().length > 0,
+    analysis.confidenceReasoning.trim().length > 0 &&
+      !analysis.confidenceReasoning.startsWith("Confidence reasoning was not generated"),
+  ];
+  return checks.filter(Boolean).length / checks.length;
 }
 
 // The model is instructed to follow the schema exactly, but response_format
